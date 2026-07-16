@@ -1,0 +1,402 @@
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  listWiredKeys,
+  unwireCreatedFile,
+  unwireFromLedger,
+  unwireJsonFile,
+  unwireTextFile,
+  wireJsonFile,
+  wireMarkedSection,
+  wireTextFile,
+} from "../../src/adapters/diffwire.ts";
+
+interface LedgerEntry {
+  ledgerKey: string;
+  path: string;
+  before: string | null;
+  at: string;
+}
+
+let tmpRoot: string;
+let kelbrinHomeDir: string;
+let prevKelbrinHome: string | undefined;
+
+beforeEach(() => {
+  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-wire-"));
+  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  prevKelbrinHome = process.env.KELBRIN_HOME;
+  process.env.KELBRIN_HOME = kelbrinHomeDir;
+});
+
+afterEach(() => {
+  if (prevKelbrinHome === undefined) {
+    delete process.env.KELBRIN_HOME;
+  } else {
+    process.env.KELBRIN_HOME = prevKelbrinHome;
+  }
+  rmSync(tmpRoot, { recursive: true, force: true });
+});
+
+function target(name: string): string {
+  return join(tmpRoot, name);
+}
+
+function readLedger(): LedgerEntry[] {
+  const raw = readFileSync(join(kelbrinHomeDir, "wired.json"), "utf8");
+  return JSON.parse(raw) as LedgerEntry[];
+}
+
+const IDENTITY = (json: Record<string, unknown>): Record<string, unknown> => json;
+
+const ADD_HOOK = (json: Record<string, unknown>): Record<string, unknown> => ({
+  ...json,
+  hook: "kelbrin emit",
+});
+
+describe("wireJsonFile", () => {
+  it("should_report_change_and_render_added_lines_when_file_absent", () => {
+    const path = target("config.json");
+    const op = wireJsonFile(path, ADD_HOOK, "cc-settings");
+    expect(op.changed).toBe(true);
+    expect(op.diff).toContain('+  "hook": "kelbrin emit"');
+    expect(existsSync(path)).toBe(false); // not written until apply()
+  });
+
+  it("should_write_canonical_json_and_record_absent_before_on_apply", () => {
+    const path = target("config.json");
+    const op = wireJsonFile(path, ADD_HOOK, "cc-settings");
+    op.apply();
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ hook: "kelbrin emit" });
+    expect(readFileSync(path, "utf8").endsWith("}\n")).toBe(true);
+    const ledger = readLedger();
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]?.ledgerKey).toBe("cc-settings");
+    expect(ledger[0]?.before).toBeNull();
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "should_write_the_ledger_owner_only_0600_since_it_copies_foreign_secrets",
+    () => {
+      const path = target("config.json");
+      wireJsonFile(path, ADD_HOOK, "cc-settings").apply();
+      const mode = statSync(join(kelbrinHomeDir, "wired.json")).mode & 0o777;
+      expect(mode).toBe(0o600);
+    },
+  );
+
+  it("should_be_idempotent_on_second_wire_with_no_diff", () => {
+    const path = target("config.json");
+    wireJsonFile(path, ADD_HOOK, "cc-settings").apply();
+    const second = wireJsonFile(path, ADD_HOOK, "cc-settings");
+    expect(second.changed).toBe(false);
+    expect(second.diff).toBe("");
+  });
+
+  it("should_upsert_by_key_and_keep_the_earliest_before_when_wired_twice", () => {
+    const path = target("config.json");
+    // First wire records the true pre-kelbrin state (absent → before: null).
+    wireTextFile(path, "kelbrin-v1\n", "cc-settings").apply();
+    // A later wire of the SAME key must not add a second entry, and must not
+    // overwrite `before` with now-kelbrin-contaminated content — else unwire
+    // would restore a file that already had kelbrin in it.
+    wireTextFile(path, "kelbrin-v2\n", "cc-settings").apply();
+    const ledger = readLedger();
+    const forKey = ledger.filter((entry) => entry.ledgerKey === "cc-settings");
+    expect(forKey).toHaveLength(1);
+    expect(forKey[0]?.before).toBeNull();
+  });
+
+  it("should_merge_into_existing_json_preserving_prior_keys", () => {
+    const path = target("config.json");
+    writeFileSync(path, `${JSON.stringify({ existing: 1 }, null, 2)}\n`);
+    const op = wireJsonFile(path, ADD_HOOK, "cc-settings");
+    op.apply();
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      existing: 1,
+      hook: "kelbrin emit",
+    });
+  });
+
+  it("should_treat_a_no_op_mutate_on_existing_file_as_unchanged", () => {
+    const path = target("config.json");
+    writeFileSync(path, `${JSON.stringify({ existing: 1 }, null, 2)}\n`);
+    const op = wireJsonFile(path, IDENTITY, "cc-settings");
+    expect(op.changed).toBe(false);
+    expect(op.diff).toBe("");
+  });
+});
+
+describe("wireTextFile", () => {
+  it("should_render_a_line_diff_of_old_vs_new", () => {
+    const path = target("kelbrin.md");
+    writeFileSync(path, "line one\nline two\nline three\n");
+    const op = wireTextFile(path, "line one\nCHANGED\nline three\n", "cc-md");
+    expect(op.changed).toBe(true);
+    expect(op.diff).toContain("-line two");
+    expect(op.diff).toContain("+CHANGED");
+    expect(op.diff).toContain(" line one"); // context retained
+  });
+
+  it("should_be_unchanged_when_new_content_equals_existing", () => {
+    const path = target("kelbrin.md");
+    writeFileSync(path, "same\n");
+    const op = wireTextFile(path, "same\n", "cc-md");
+    expect(op.changed).toBe(false);
+    expect(op.diff).toBe("");
+  });
+});
+
+describe("unwireFromLedger", () => {
+  it("should_restore_the_prior_file_byte_identically", () => {
+    const path = target("kelbrin.md");
+    const original = "original\nbytes\n";
+    writeFileSync(path, original);
+    wireTextFile(path, "brand new content\n", "cc-md").apply();
+    expect(readFileSync(path, "utf8")).toBe("brand new content\n");
+    unwireFromLedger("cc-md");
+    expect(readFileSync(path, "utf8")).toBe(original);
+  });
+
+  it("should_delete_a_file_that_did_not_exist_before_wiring", () => {
+    const path = target("created.json");
+    wireJsonFile(path, ADD_HOOK, "cc-settings").apply();
+    expect(existsSync(path)).toBe(true);
+    unwireFromLedger("cc-settings");
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("should_remove_the_ledger_entry_after_reversal", () => {
+    const path = target("created.json");
+    wireJsonFile(path, ADD_HOOK, "cc-settings").apply();
+    expect(readLedger()).toHaveLength(1);
+    unwireFromLedger("cc-settings");
+    expect(readLedger()).toHaveLength(0);
+  });
+
+  it("should_be_a_no_op_for_an_unknown_ledger_key", () => {
+    expect(() => unwireFromLedger("never-wired")).not.toThrow();
+  });
+});
+
+describe("wireMarkedSection", () => {
+  const KEY = "cc:readaloud";
+  const MARKER = "kelbrin:readaloud";
+
+  it("should_append_a_marked_block_to_an_existing_file", () => {
+    const path = target("CLAUDE.md");
+    writeFileSync(path, "# My rules\n\nBe concise.\n");
+    const op = wireMarkedSection(path, MARKER, "SPEAK NICELY", KEY);
+    expect(op.changed).toBe(true);
+    op.apply();
+    const out = readFileSync(path, "utf8");
+    expect(out).toContain("# My rules");
+    expect(out).toContain("Be concise.");
+    expect(out).toContain(`<!-- ${MARKER}:start`);
+    expect(out).toContain("SPEAK NICELY");
+    expect(out).toContain(`<!-- ${MARKER}:end -->`);
+  });
+
+  it("should_create_the_file_when_absent", () => {
+    const path = target("CLAUDE.md");
+    wireMarkedSection(path, MARKER, "SPEAK NICELY", KEY).apply();
+    expect(readFileSync(path, "utf8")).toContain("SPEAK NICELY");
+  });
+
+  it("should_update_the_block_in_place_and_stay_idempotent", () => {
+    const path = target("CLAUDE.md");
+    writeFileSync(path, "top\n");
+    wireMarkedSection(path, MARKER, "V1", KEY).apply();
+    const second = wireMarkedSection(path, MARKER, "V1", KEY);
+    expect(second.changed).toBe(false); // identical → no-op
+    wireMarkedSection(path, MARKER, "V2", KEY).apply();
+    const out = readFileSync(path, "utf8");
+    expect(out).toContain("V2");
+    expect(out).not.toContain("V1");
+    expect(out.match(/:start/g)?.length).toBe(1); // exactly one block
+    expect(out.startsWith("top")).toBe(true); // user content preserved
+  });
+
+  it("should_surgically_unwire_and_preserve_edits_made_after_injection", () => {
+    const path = target("CLAUDE.md");
+    writeFileSync(path, "original\n");
+    wireMarkedSection(path, MARKER, "BLOCK", KEY).apply();
+    // user edits the file AFTER injection:
+    writeFileSync(path, `${readFileSync(path, "utf8")}\n## New user section\nkeep me\n`);
+    unwireFromLedger(KEY);
+    const out = readFileSync(path, "utf8");
+    expect(out).toContain("original");
+    expect(out).toContain("keep me"); // later edit survives
+    expect(out).not.toContain("BLOCK");
+    expect(out).not.toContain(`${MARKER}:start`);
+  });
+
+  it("should_be_a_noop_unwire_when_markers_already_gone", () => {
+    const path = target("CLAUDE.md");
+    writeFileSync(path, "hand-removed\n");
+    wireMarkedSection(path, MARKER, "BLOCK", KEY).apply();
+    writeFileSync(path, "hand-removed\n"); // user deleted the block manually
+    expect(() => unwireFromLedger(KEY)).not.toThrow();
+    expect(readFileSync(path, "utf8")).toBe("hand-removed\n");
+  });
+});
+
+describe("wired.json ledger round-trip", () => {
+  it("should_accumulate_one_entry_per_applied_wire", () => {
+    wireJsonFile(target("a.json"), ADD_HOOK, "key-a").apply();
+    wireTextFile(target("b.md"), "b\n", "key-b").apply();
+    const ledger = readLedger();
+    expect(ledger.map((entry) => entry.ledgerKey)).toEqual(["key-a", "key-b"]);
+    expect(ledger.every((entry) => typeof entry.at === "string")).toBe(true);
+  });
+});
+
+describe("unwireJsonFile", () => {
+  const KEY = "x:settings";
+  const removeFoo = (j: Record<string, unknown>): Record<string, unknown> => {
+    const { foo: _drop, ...rest } = j;
+    return rest;
+  };
+
+  it("should_surgically_rewrite_current_content_preserving_foreign_keys", () => {
+    const path = target("settings.json");
+    writeFileSync(path, `${JSON.stringify({ foo: "kelbrin", userHook: 1 }, null, 2)}\n`);
+    wireJsonFile(path, (j) => j, KEY).apply(); // record a ledger entry for KEY
+    // user adds their own key AFTER wiring:
+    writeFileSync(path, `${JSON.stringify({ foo: "kelbrin", userHook: 1, mine: 2 }, null, 2)}\n`);
+    unwireJsonFile(path, removeFoo, KEY);
+    const out = JSON.parse(readFileSync(path, "utf8"));
+    expect(out).toEqual({ userHook: 1, mine: 2 }); // kelbrin's `foo` gone, user keys kept
+    expect(listWiredKeys()).not.toContain(KEY);
+  });
+
+  it("should_be_a_noop_when_the_file_is_absent", () => {
+    expect(() => unwireJsonFile(target("nope.json"), removeFoo, KEY)).not.toThrow();
+  });
+
+  it("should_drop_the_ledger_key_even_when_nothing_changes", () => {
+    const path = target("settings.json");
+    writeFileSync(path, `${JSON.stringify({ userHook: 1 }, null, 2)}\n`);
+    wireJsonFile(path, (j) => j, KEY).apply();
+    unwireJsonFile(path, removeFoo, KEY); // no `foo` present
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ userHook: 1 });
+    expect(listWiredKeys()).not.toContain(KEY);
+  });
+});
+
+describe("unwireCreatedFile", () => {
+  it("should_delete_the_file_and_drop_the_key_even_if_edited", () => {
+    const path = target("kelbrin.md");
+    writeFileSync(path, "hand-edited by user\n");
+    wireTextFile(path, "orig", "x:command").apply();
+    writeFileSync(path, "hand-edited by user\n");
+    unwireCreatedFile(path, "x:command");
+    expect(existsSync(path)).toBe(false);
+    expect(listWiredKeys()).not.toContain("x:command");
+  });
+
+  it("should_be_a_noop_when_the_file_is_already_gone", () => {
+    expect(() => unwireCreatedFile(target("gone.md"), "x:command")).not.toThrow();
+  });
+});
+
+describe("unwireTextFile", () => {
+  const KEY = "x:text";
+
+  it("should_write_the_transformed_content_and_drop_the_key", () => {
+    const path = target("notes.txt");
+    writeFileSync(path, "kelbrin line\nuser line\n");
+    wireTextFile(path, "kelbrin line\nuser line\n", KEY).apply();
+    unwireTextFile(
+      path,
+      (current) => (current ?? "").replace("kelbrin line\n", ""),
+      KEY,
+    );
+    expect(readFileSync(path, "utf8")).toBe("user line\n");
+    expect(listWiredKeys()).not.toContain(KEY);
+  });
+
+  it("should_write_nothing_when_the_transform_returns_the_same_content_but_still_drop_the_key", () => {
+    const path = target("notes.txt");
+    writeFileSync(path, "unchanged\n");
+    wireTextFile(path, "unchanged\n", KEY).apply();
+    const before = statSync(path).mtimeMs;
+    unwireTextFile(path, (current) => current, KEY);
+    expect(readFileSync(path, "utf8")).toBe("unchanged\n");
+    expect(statSync(path).mtimeMs).toBe(before);
+    expect(listWiredKeys()).not.toContain(KEY);
+  });
+
+  it("should_not_write_when_the_original_is_absent_but_still_drop_the_key", () => {
+    const path = target("gone.txt");
+    unwireTextFile(path, (current) => current, KEY);
+    expect(existsSync(path)).toBe(false);
+    expect(listWiredKeys()).not.toContain(KEY);
+  });
+});
+
+describe("hollr→kelbrin rename compat", () => {
+  const KEY = "rename:test";
+  const LEGACY_MARKER = "hollr:readaloud";
+  const MARKER = "kelbrin:readaloud";
+  const LEGACY_BLOCK = [
+    "# My memory",
+    "",
+    "<!-- hollr:readaloud:start (managed by hollr — `hollr uninstall`, or re-run `hollr init` with read-aloud off, removes this) -->",
+    "old speakable-mode instructions",
+    "<!-- hollr:readaloud:end -->",
+    "",
+  ].join("\n");
+
+  it("should_replace_a_legacy_hollr_marked_block_instead_of_stacking_a_second_one", () => {
+    const path = target("CLAUDE.md");
+    writeFileSync(path, LEGACY_BLOCK, "utf8");
+    const op = wireMarkedSection(path, MARKER, "new instructions", KEY, [LEGACY_MARKER]);
+    op.apply();
+    const text = readFileSync(path, "utf8");
+    expect(text).toContain("new instructions");
+    expect(text).not.toContain("hollr:readaloud");
+    expect(text).toContain("# My memory");
+  });
+
+  it("should_strip_a_legacy_worded_block_via_the_ledger_on_unwire", () => {
+    // Simulates an upgrade without re-wiring: the (migrated) ledger still
+    // holds the hollr-era markerId, and the block carries the hollr wording.
+    const path = target("AGENTS.md");
+    writeFileSync(path, "", "utf8");
+    const wireOp = wireMarkedSection(path, LEGACY_MARKER, "ignored", KEY);
+    wireOp.apply();
+    // Rewrite the block with the exact legacy management wording.
+    writeFileSync(path, LEGACY_BLOCK, "utf8");
+    unwireFromLedger(KEY);
+    const text = readFileSync(path, "utf8");
+    expect(text).not.toContain("hollr:readaloud");
+    expect(text).toContain("# My memory");
+  });
+
+  it("should_reverse_the_stale_artifact_when_a_ledger_keys_path_moves", () => {
+    // A created file tracked under a key moved (hollr.md → kelbrin.md):
+    // re-wiring must delete the stale legacy file, not orphan it.
+    const legacyPath = target("hollr.md");
+    const newPath = target("kelbrin.md");
+    const first = wireTextFile(legacyPath, "legacy command\n", KEY);
+    first.apply();
+    expect(existsSync(legacyPath)).toBe(true);
+    const second = wireTextFile(newPath, "new command\n", KEY);
+    second.apply();
+    expect(existsSync(legacyPath)).toBe(false);
+    expect(readFileSync(newPath, "utf8")).toBe("new command\n");
+    unwireFromLedger(KEY);
+    expect(existsSync(newPath)).toBe(false);
+  });
+});
