@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WebhookTarget } from "../../src/core/config.ts";
-import type { KelbrinEvent } from "../../src/core/events.ts";
+import type { TurnbellEvent } from "../../src/core/events.ts";
 import { fireWebhooks, hardenConfig, webhookPayload } from "../../src/sinks/webhook.ts";
 
 const CWD_SENTINEL = "/secret/path/SENTINEL_CWD_ZZZ";
@@ -12,31 +12,31 @@ const RESP_SENTINEL = "SENTINEL_RESPONSE_secret_code_xyz";
 const TS = "2026-07-11T12:00:00.000Z";
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
+let turnbellHomeDir: string;
 let logPath: string;
-let prevKelbrinHome: string | undefined;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-wh-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  logPath = join(kelbrinHomeDir, "webhook.log");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-wh-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  logPath = join(turnbellHomeDir, "webhook.log");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
-function makeEvent(overrides: Partial<KelbrinEvent> = {}): KelbrinEvent {
+function makeEvent(overrides: Partial<TurnbellEvent> = {}): TurnbellEvent {
   return {
     v: 1,
     ts: TS,
@@ -161,7 +161,7 @@ describe("provider formatting", () => {
     expect(call.init.method).toBe("POST");
     expect(bodyOf(call)).toBe("build passed");
     const headers = headersOf(call);
-    expect(headers.Title).toBe("kelbrin: Claude Code done in my app");
+    expect(headers.Title).toBe("turnbell: Claude Code done in my app");
     expect(headers.Priority).toBe("default");
     expect(headers["X-Custom"]).toBe("y");
   });
@@ -187,7 +187,7 @@ describe("provider formatting", () => {
     const params = new URLSearchParams(bodyOf(call));
     expect(params.get("token")).toBe("TKN");
     expect(params.get("user")).toBe("USR");
-    expect(params.get("title")).toBe("kelbrin: Claude Code done in my app");
+    expect(params.get("title")).toBe("turnbell: Claude Code done in my app");
     expect(params.get("message")).toBe("build passed");
     const headers = headersOf(call);
     expect(headers.token).toBeUndefined();
@@ -205,7 +205,7 @@ describe("provider formatting", () => {
     const call = calls[0]!;
     expect(headersOf(call)["content-type"]).toBe("application/json");
     expect(JSON.parse(bodyOf(call))).toEqual({
-      text: "kelbrin: Claude Code done in my app — build passed",
+      text: "turnbell: Claude Code done in my app — build passed",
     });
   });
 
@@ -423,7 +423,7 @@ describe("malformed config resilience (never reject, isolate targets)", () => {
 
 describe("hardenConfig", () => {
   it("should_chmod_config_to_600_when_a_target_has_headers", () => {
-    const cfgPath = join(kelbrinHomeDir, "config.json");
+    const cfgPath = join(turnbellHomeDir, "config.json");
     writeFileSync(cfgPath, "{}");
     chmodSync(cfgPath, 0o644);
     hardenConfig([target({ headers: { token: "x" } })]);
@@ -431,7 +431,7 @@ describe("hardenConfig", () => {
   });
 
   it("should_not_chmod_when_no_target_has_headers", () => {
-    const cfgPath = join(kelbrinHomeDir, "config.json");
+    const cfgPath = join(turnbellHomeDir, "config.json");
     writeFileSync(cfgPath, "{}");
     chmodSync(cfgPath, 0o644);
     hardenConfig([target()]);

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { isEntryModule, printRenameNoticeIfLegacyInvocation } from "../src/index.ts";
 
-const MODULE = "/pkg/lib/node_modules/kelbrin/dist/index.js";
-const SYMLINK = "/usr/local/bin/kelbrin";
+const MODULE = "/pkg/lib/node_modules/turnbell/dist/index.js";
+const SYMLINK = "/usr/local/bin/turnbell";
 
 describe("isEntryModule", () => {
   it("should_return_false_when_entry_is_undefined", () => {
@@ -44,10 +44,10 @@ describe("printRenameNoticeIfLegacyInvocation", () => {
     const stderr = vi.fn();
     printRenameNoticeIfLegacyInvocation(["/usr/bin/node", "/usr/local/bin/hollr"], stderr);
     expect(stderr).toHaveBeenCalledTimes(1);
-    expect(stderr.mock.calls[0]?.[0]).toContain("hollr is now kelbrin");
+    expect(stderr.mock.calls[0]?.[0]).toContain("hollr is now turnbell");
   });
 
-  it("should_stay_silent_when_invoked_as_kelbrin", () => {
+  it("should_stay_silent_when_invoked_as_turnbell", () => {
     const stderr = vi.fn();
     printRenameNoticeIfLegacyInvocation(["/usr/bin/node", SYMLINK], stderr);
     expect(stderr).not.toHaveBeenCalled();

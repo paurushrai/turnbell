@@ -9,7 +9,7 @@ const packageJson = JSON.parse(
 
 export default defineConfig({
   define: {
-    __KELBRIN_VERSION__: JSON.stringify(packageJson.version),
+    __TURNBELL_VERSION__: JSON.stringify(packageJson.version),
   },
   test: {
     coverage: {

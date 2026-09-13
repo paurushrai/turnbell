@@ -26,8 +26,8 @@ const LEDGER_KEY = "opencode";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 const whichNone = (): string | null => null;
 const whichOpencode = (bin: string): string | null =>
@@ -38,24 +38,24 @@ function deps(which: (bin: string) => string | null = whichNone): AdapterDeps {
 }
 
 function pluginPath(): string {
-  return join(home, ".config", "opencode", "plugin", "kelbrin.js");
+  return join(home, ".config", "opencode", "plugin", "turnbell.js");
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-opencode-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-opencode-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
   unwireFromLedger(LEDGER_KEY);
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -63,7 +63,7 @@ afterEach(() => {
 describe("opencode.capabilities", () => {
   it("should_advertise_done_blocked_but_not_readaloud_or_slash_command", () => {
     // Read-aloud is disabled: opencode's storage (message + part split) is an
-    // undocumented internal shape with known churn, so kelbrin degrades to announce.
+    // undocumented internal shape with known churn, so turnbell degrades to announce.
     expect(opencode.capabilities).toEqual({
       done: true,
       blocked: true,
@@ -118,19 +118,19 @@ describe("opencode.readLastResponse", () => {
 });
 
 describe("opencode.wire plugin template", () => {
-  it("should_write_a_kelbrin_js_plugin_that_subscribes_to_the_verified_events", async () => {
+  it("should_write_a_turnbell_js_plugin_that_subscribes_to_the_verified_events", async () => {
     const result = await opencode.wire(deps());
     expect(result.changed).toBe(true);
     expect(existsSync(pluginPath())).toBe(true);
     const plugin = readFileSync(pluginPath(), "utf8");
     // Plugin module export shape (opencode Plugin: async fn returning hooks).
-    expect(plugin).toContain("export const kelbrin");
+    expect(plugin).toContain("export const turnbell");
     expect(plugin).toContain("event: async ({ event })");
     // Verified event subscriptions.
     expect(plugin).toContain('event.type === "session.idle"');
     expect(plugin).toContain('event.type === "permission.asked"');
-    // Shells out to the kelbrin CLI for both mapped events.
-    expect(plugin).toContain("kelbrin emit --agent opencode");
+    // Shells out to the turnbell CLI for both mapped events.
+    expect(plugin).toContain("turnbell emit --agent opencode");
     expect(plugin).toContain("--event ${event} --payload-argv ${payload}");
     expect(plugin).toContain('emit("done"');
     expect(plugin).toContain('emit("blocked"');
@@ -157,7 +157,7 @@ describe("opencode.unwire", () => {
 
   it("should_delete_a_pre_existing_plugin_file_outright_not_restore_it", async () => {
     // unwireCreatedFile always deletes the file it owns: the plugin is a whole
-    // file kelbrin owns outright, not a section of a shared config, so unwire
+    // file turnbell owns outright, not a section of a shared config, so unwire
     // does not attempt to restore whatever (if anything) was there before.
     mkdirSync(join(home, ".config", "opencode", "plugin"), { recursive: true });
     writeFileSync(pluginPath(), "export const mine = async () => ({});\n", "utf8");
@@ -167,7 +167,7 @@ describe("opencode.unwire", () => {
   });
 });
 
-describe("opencode hollr→kelbrin rename compat", () => {
+describe("opencode hollr→turnbell rename compat", () => {
   function legacyPluginPath(): string {
     return join(home, ".config", "opencode", "plugin", "hollr.js");
   }

@@ -1,16 +1,16 @@
 /**
  * The claude-code adapter — the reference adapter the other agents copy. It
- * normalizes Claude Code's hook payloads into a {@link KelbrinEvent}, reads the
+ * normalizes Claude Code's hook payloads into a {@link TurnbellEvent}, reads the
  * last assistant turn from a JSONL transcript for read-aloud (ported from the
  * v1 Python `transcript.last_assistant_message`), and wires Claude Code's own
- * `~/.claude/settings.json` to invoke `kelbrin emit`.
+ * `~/.claude/settings.json` to invoke `turnbell emit`.
  *
  * `normalize`/`readLastResponse`/`detect` run inside (or adjacent to) a hook and
  * MUST NOT throw: every read degrades defensively. `wire` goes through
  * {@link wireJsonFile}/{@link wireTextFile} so every change is previewable;
- * `unwire` is surgical — {@link unwireJsonFile} strips only kelbrin's own hook
- * entries via {@link removeKelbrinHooks}, and {@link unwireCreatedFile} deletes
- * the slash-command file kelbrin created — so edits a user makes after wiring
+ * `unwire` is surgical — {@link unwireJsonFile} strips only turnbell's own hook
+ * entries via {@link removeTurnbellHooks}, and {@link unwireCreatedFile} deletes
+ * the slash-command file turnbell created — so edits a user makes after wiring
  * survive.
  */
 
@@ -18,10 +18,10 @@ import { closeSync, fstatSync, openSync, readFileSync, readSync, statSync } from
 import { join } from "node:path";
 
 import type { EventName } from "../core/config.ts";
-import type { KelbrinEvent } from "../core/events.ts";
+import type { TurnbellEvent } from "../core/events.ts";
 import { projectLabel } from "../core/events.ts";
 import { unwireCreatedFile, unwireJsonFile, wireJsonFile, wireTextFile } from "./diffwire.ts";
-import { legacyCommandVariant, removeKelbrinHooks } from "./hooks.ts";
+import { legacyCommandVariant, removeTurnbellHooks } from "./hooks.ts";
 import type { Adapter, AdapterDeps, Detection, WireResult } from "./types.ts";
 
 const ID = "claude-code";
@@ -30,34 +30,34 @@ const LEDGER_KEY = "claude-code:settings";
 const COMMAND_LEDGER_KEY = "claude-code:command";
 
 const COMMANDS_DIR = "commands";
-const COMMAND_FILE = "kelbrin.md";
+const COMMAND_FILE = "turnbell.md";
 /** Slash-command file written by pre-rename (hollr) versions. */
 const LEGACY_COMMAND_FILE = "hollr.md";
 const HOOKS_KEY = "hooks";
 const ENABLED_PLUGINS_KEY = "enabledPlugins";
 
 /**
- * The `/kelbrin` custom slash command kelbrin owns. Claude Code substitutes
+ * The `/turnbell` custom slash command turnbell owns. Claude Code substitutes
  * `$ARGUMENTS` with the user's text, and the body instructs Claude to run the
- * global `kelbrin` CLI and relay its output. `init` is deliberately excluded — it
+ * global `turnbell` CLI and relay its output. `init` is deliberately excluded — it
  * is an interactive terminal-only wizard, not a slash-command action. Managed by
- * kelbrin and fully reversible via `kelbrin uninstall`.
+ * turnbell and fully reversible via `turnbell uninstall`.
  */
 const COMMAND_TEMPLATE = `---
-description: Control kelbrin (pause/resume/stop/status/mute/doctor)
+description: Control turnbell (pause/resume/stop/status/mute/doctor)
 ---
 
-Managed by kelbrin — reversible via \`kelbrin uninstall\`. Do not edit by hand.
+Managed by turnbell — reversible via \`turnbell uninstall\`. Do not edit by hand.
 
 Run this shell command and relay its output to the user verbatim:
 
 \`\`\`bash
-kelbrin $ARGUMENTS
+turnbell $ARGUMENTS
 \`\`\`
 
 Supported actions: pause, resume, stop, status, mute, doctor.
 
-Note: \`kelbrin init\` is terminal-only (an interactive wizard) and is not
+Note: \`turnbell init\` is terminal-only (an interactive wizard) and is not
 available as a slash command — run it directly in your terminal instead.
 `;
 
@@ -121,9 +121,9 @@ const SUPPRESSED_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 const STOP_COMMAND =
-  "kelbrin emit --agent claude-code --event done --payload-stdin";
+  "turnbell emit --agent claude-code --event done --payload-stdin";
 const NOTIFICATION_COMMAND =
-  "kelbrin emit --agent claude-code --event blocked --payload-stdin";
+  "turnbell emit --agent claude-code --event blocked --payload-stdin";
 
 /** v0.1.x Python hook scripts; a hook command referencing one is legacy. */
 const LEGACY_SCRIPT_MARKERS = ["hollr_hook.py", "announce-done.py"] as const;
@@ -248,8 +248,8 @@ function entryHasCommand(entry: unknown, command: string): boolean {
   return entry.hooks.some((hook) => isRecord(hook) && hook.command === command);
 }
 
-/** Append kelbrin's hook entry for `command` unless it is already present. */
-function appendKelbrinHook(existing: unknown, command: string): unknown[] {
+/** Append turnbell's hook entry for `command` unless it is already present. */
+function appendTurnbellHook(existing: unknown, command: string): unknown[] {
   const list = Array.isArray(existing) ? existing : [];
   if (list.some((entry) => entryHasCommand(entry, command))) {
     return list;
@@ -267,8 +267,8 @@ function addHooks(json: JsonObject): JsonObject {
     ...json,
     hooks: {
       ...hooks,
-      [HOOK_STOP]: appendKelbrinHook(hooks[HOOK_STOP], STOP_COMMAND),
-      [HOOK_NOTIFICATION]: appendKelbrinHook(hooks[HOOK_NOTIFICATION], NOTIFICATION_COMMAND),
+      [HOOK_STOP]: appendTurnbellHook(hooks[HOOK_STOP], STOP_COMMAND),
+      [HOOK_NOTIFICATION]: appendTurnbellHook(hooks[HOOK_NOTIFICATION], NOTIFICATION_COMMAND),
     },
   };
 }
@@ -276,30 +276,30 @@ function addHooks(json: JsonObject): JsonObject {
 // --- surgical unwire ---------------------------------------------------------
 
 /**
- * The hook commands kelbrin's own wiring can append, plus the pre-rename
+ * The hook commands turnbell's own wiring can append, plus the pre-rename
  * (hollr) forms old installs wrote — both count as ours for strip/unwire.
  */
-const KELBRIN_COMMANDS: ReadonlySet<string> = new Set([
+const TURNBELL_COMMANDS: ReadonlySet<string> = new Set([
   STOP_COMMAND,
   NOTIFICATION_COMMAND,
   legacyCommandVariant(STOP_COMMAND),
   legacyCommandVariant(NOTIFICATION_COMMAND),
 ]);
 
-/** Shape-A entry (`{ hooks: [{ command }] }`) carrying one of kelbrin's commands. */
-function isKelbrinEntry(entry: unknown): boolean {
+/** Shape-A entry (`{ hooks: [{ command }] }`) carrying one of turnbell's commands. */
+function isTurnbellEntry(entry: unknown): boolean {
   return (
     isRecord(entry) &&
     Array.isArray(entry.hooks) &&
     entry.hooks.some(
-      (hook) => isRecord(hook) && typeof hook.command === "string" && KELBRIN_COMMANDS.has(hook.command),
+      (hook) => isRecord(hook) && typeof hook.command === "string" && TURNBELL_COMMANDS.has(hook.command),
     )
   );
 }
 
-/** Strip kelbrin's Stop/Notification hook entries, preserving everything else. */
+/** Strip turnbell's Stop/Notification hook entries, preserving everything else. */
 function removeHooks(json: JsonObject): JsonObject {
-  return removeKelbrinHooks(json, [HOOK_STOP, HOOK_NOTIFICATION], isKelbrinEntry);
+  return removeTurnbellHooks(json, [HOOK_STOP, HOOK_NOTIFICATION], isTurnbellEntry);
 }
 
 // --- legacy v0.1.x cleanup --------------------------------------------------
@@ -375,7 +375,7 @@ function stripLegacy(json: JsonObject): JsonObject {
 
 /**
  * The full settings mutation: strip any v0.1.x legacy integration and any
- * kelbrin/hollr entries, then add kelbrin's Stop/Notification hooks — so a
+ * turnbell/hollr entries, then add turnbell's Stop/Notification hooks — so a
  * pre-rename wiring is replaced, never duplicated. Idempotent — a fully-wired
  * file is unchanged.
  */
@@ -399,8 +399,8 @@ function legacyMarker(rawText: string | null): string | null {
 /** Human-readable removal guidance for a detected legacy marker. */
 function legacyMessage(marker: string): string {
   return (
-    `legacy kelbrin v1 integration detected in settings (${marker}); ` +
-    "`kelbrin init` removes it as part of wiring (reversible via `kelbrin uninstall`)"
+    `legacy turnbell v1 integration detected in settings (${marker}); ` +
+    "`turnbell init` removes it as part of wiring (reversible via `turnbell uninstall`)"
   );
 }
 
@@ -498,7 +498,7 @@ export const claudeCode: Adapter = {
     return Promise.resolve();
   },
 
-  normalize(raw: unknown, eventHint: EventName): KelbrinEvent | null {
+  normalize(raw: unknown, eventHint: EventName): TurnbellEvent | null {
     if (!isRecord(raw)) {
       return null;
     }

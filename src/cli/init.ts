@@ -1,5 +1,5 @@
 /**
- * The thin shell for `kelbrin init` / `kelbrin uninstall`: the ONLY place @clack is
+ * The thin shell for `turnbell init` / `turnbell uninstall`: the ONLY place @clack is
  * allowed. It builds a real {@link InitIo} from @clack prompts (mapping each
  * cancel to a thrown error so an aborted setup surfaces, not silently succeeds),
  * assembles the real effects (v1 detection, migration, voice enumeration via a
@@ -136,15 +136,15 @@ function realInitDeps(): InitDeps {
 }
 
 /**
- * `kelbrin init` shell. `runTestFn` (injected by the dispatcher, which owns the
- * live test deps) runs `kelbrin test` when the user opts into a preview.
+ * `turnbell init` shell. `runTestFn` (injected by the dispatcher, which owns the
+ * live test deps) runs `turnbell test` when the user opts into a preview.
  */
 export async function runInitCli(
   argv: string[],
   runTestFn: () => Promise<number>,
 ): Promise<number> {
   const yes = argv.includes("--yes") || argv.includes("-y");
-  clack.intro("kelbrin setup");
+  clack.intro("turnbell setup");
   const result = await runInit(realInitDeps(), { yes });
   if (result.configPath === null) {
     clack.outro("Setup stopped — nothing was written.");
@@ -157,8 +157,8 @@ export async function runInitCli(
   return EXIT_OK;
 }
 
-/** `kelbrin uninstall` shell. */
+/** `turnbell uninstall` shell. */
 export function runUninstallCli(): Promise<number> {
-  clack.intro("kelbrin uninstall");
+  clack.intro("turnbell uninstall");
   return runUninstall(clackIo(), { home: homedir(), which: whichOnPath });
 }

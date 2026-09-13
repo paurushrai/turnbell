@@ -1,5 +1,5 @@
 /**
- * `kelbrin status`: a read-only report of what kelbrin will do for the current
+ * `turnbell status`: a read-only report of what turnbell will do for the current
  * project — wired adapters, the effective config, mute + platform capability,
  * and recent activity. It composes existing subsystems and never sends anything.
  *
@@ -16,9 +16,9 @@ import { join } from "node:path";
 
 import { byId } from "../adapters/registry.ts";
 import { listWiredKeys } from "../adapters/diffwire.ts";
-import type { Activation, EventName, KelbrinConfig, WebhookTarget } from "../core/config.ts";
+import type { Activation, EventName, TurnbellConfig, WebhookTarget } from "../core/config.ts";
 import {
-  kelbrinHome,
+  turnbellHome,
   isMuted,
   isProjectEnabled,
   loadConfig,
@@ -41,7 +41,7 @@ const EVENT_NAMES: readonly EventName[] = ["done", "blocked", "error"];
 /** The fully-resolved inputs `formatStatus` renders; nothing here touches disk. */
 export interface StatusModel {
   cwd: string;
-  config: KelbrinConfig;
+  config: TurnbellConfig;
   muted: boolean;
   enabled: boolean;
   activation: Activation;
@@ -52,7 +52,7 @@ export interface StatusModel {
   eventsLog: string[];
 }
 
-/** Injected effects for `runStatus`, so it is testable via a temp KELBRIN_HOME. */
+/** Injected effects for `runStatus`, so it is testable via a temp TURNBELL_HOME. */
 export interface StatusIo {
   cwd: string;
   platform: Platform;
@@ -70,7 +70,7 @@ function wiredLabel(key: string): string {
 }
 
 /** Read the effective mode for `event` defensively (config is not validated). */
-function eventMode(config: KelbrinConfig, event: EventName): string {
+function eventMode(config: TurnbellConfig, event: EventName): string {
   const events: unknown = config.events;
   if (isRecord(events)) {
     const entry = events[event];
@@ -82,7 +82,7 @@ function eventMode(config: KelbrinConfig, event: EventName): string {
 }
 
 /** Webhook target NAMES only — never the url or headers (they hold secrets). */
-function webhookNames(config: KelbrinConfig): string[] {
+function webhookNames(config: TurnbellConfig): string[] {
   const targets: unknown = config.webhooks;
   if (!Array.isArray(targets)) {
     return [];
@@ -107,14 +107,14 @@ function wiredSection(keys: string[]): string {
   return section("Wired adapters", labels);
 }
 
-function eventsSection(config: KelbrinConfig): string {
+function eventsSection(config: TurnbellConfig): string {
   return section(
     "Events",
     EVENT_NAMES.map((event) => `${event}: ${eventMode(config, event)}`),
   );
 }
 
-function configSection(config: KelbrinConfig): string {
+function configSection(config: TurnbellConfig): string {
   const voice = config.voice.name ?? DEFAULT_VOICE;
   return [
     `Voice: ${voice} @ ${config.voice.rateWpm} wpm`,
@@ -123,7 +123,7 @@ function configSection(config: KelbrinConfig): string {
   ].join("\n");
 }
 
-/** Whether kelbrin applies globally or requires an explicit per-project opt-in. */
+/** Whether turnbell applies globally or requires an explicit per-project opt-in. */
 function scopeLine(activation: Activation): string {
   return activation === "opt-in"
     ? "Notifications: on only where you turn it on"
@@ -133,13 +133,13 @@ function scopeLine(activation: Activation): string {
 /** This project's effective on/off state, factoring in mute and opt-in scope. */
 function projectStateLine(model: StatusModel): string {
   if (model.muted) {
-    return "This project: off for this project — run 'kelbrin on' to enable";
+    return "This project: off for this project — run 'turnbell on' to enable";
   }
   if (model.enabled) {
     return "This project: on for this project";
   }
   if (model.activation === "opt-in") {
-    return "This project: not turned on here — run 'kelbrin on' to enable";
+    return "This project: not turned on here — run 'turnbell on' to enable";
   }
   return "This project: on for this project";
 }
@@ -150,7 +150,7 @@ function quietLine(quiet: StatusModel["quiet"]): string {
     return "Quiet: no";
   }
   if (quiet.remainingMinutes === null) {
-    return "Quiet: quiet until you run 'kelbrin quiet off'";
+    return "Quiet: quiet until you run 'turnbell quiet off'";
   }
   return `Quiet: quiet for ${quiet.remainingMinutes} more minutes`;
 }
@@ -168,7 +168,7 @@ function projectSection(model: StatusModel): string {
 /** Render the full report. Pure: same model always yields the same string. */
 export function formatStatus(model: StatusModel): string {
   return [
-    "kelbrin status",
+    "turnbell status",
     wiredSection(model.wiredKeys),
     eventsSection(model.config),
     configSection(model.config),
@@ -207,7 +207,7 @@ function readQuietRemaining(now: Date): number | null {
 
 /** Gather the status model from disk/platform and print the report. */
 export function runStatus(io: StatusIo): number {
-  const home = kelbrinHome();
+  const home = turnbellHome();
   const config = loadConfig(io.cwd);
   const now = new Date();
   const quietMs = readQuietRemaining(now);

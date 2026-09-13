@@ -23,15 +23,15 @@ const NOTIFICATION_PAYLOAD = JSON.parse(
 ) as Record<string, unknown>;
 const EVENTS_FIXTURE = join(FIXTURES, "events.jsonl");
 
-const DONE_COMMAND = "kelbrin emit --agent copilot --event done --payload-stdin";
+const DONE_COMMAND = "turnbell emit --agent copilot --event done --payload-stdin";
 const BLOCKED_COMMAND =
-  "kelbrin emit --agent copilot --event blocked --payload-stdin";
+  "turnbell emit --agent copilot --event blocked --payload-stdin";
 const LEDGER_KEY = "copilot:hooks";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 const whichNone = (): string | null => null;
 const whichCopilot = (bin: string): string | null =>
@@ -42,7 +42,7 @@ function deps(which: (bin: string) => string | null = whichNone): AdapterDeps {
 }
 
 function hooksPath(): string {
-  return join(home, ".copilot", "hooks", "kelbrin.json");
+  return join(home, ".copilot", "hooks", "turnbell.json");
 }
 
 function writeHooks(json: unknown): void {
@@ -58,19 +58,19 @@ function readHooks(): Record<string, unknown> {
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-copilot-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-copilot-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -241,7 +241,7 @@ describe("copilot.wire", () => {
 });
 
 describe("copilot.unwire", () => {
-  it("should_unwire_only_kelbrin_hooks_and_keep_a_foreign_entry", async () => {
+  it("should_unwire_only_turnbell_hooks_and_keep_a_foreign_entry", async () => {
     const testDeps = deps();
     await copilot.wire(testDeps);
     const cfg = readHooks();
@@ -287,7 +287,7 @@ describe("copilot.unwire", () => {
   });
 });
 
-describe("copilot hollr→kelbrin rename compat", () => {
+describe("copilot hollr→turnbell rename compat", () => {
   function legacyHooksFilePath(): string {
     return join(dirname(hooksPath()), "hollr.json");
   }

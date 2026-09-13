@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WebhookTarget } from "../../src/core/config.ts";
-import type { KelbrinEvent } from "../../src/core/events.ts";
+import type { TurnbellEvent } from "../../src/core/events.ts";
 import { projectLabel } from "../../src/core/events.ts";
 import type { Platform } from "../../src/platform/index.ts";
 import type { SpeakSequencedOptions } from "../../src/platform/sequencer.ts";
@@ -14,21 +14,21 @@ import { runTest } from "../../src/cli/test.ts";
 const NOW = new Date("2026-07-11T12:00:00.000Z");
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-test-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-test-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
   vi.restoreAllMocks();
@@ -36,8 +36,8 @@ afterEach(() => {
 
 /** Writing a global config makes every cwd "configured" (isConfigured true). */
 function configureGlobal(overrides: Record<string, unknown> = {}): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  writeFileSync(join(kelbrinHomeDir, "config.json"), JSON.stringify(overrides));
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  writeFileSync(join(turnbellHomeDir, "config.json"), JSON.stringify(overrides));
 }
 
 function fakePlatform(): Platform {
@@ -65,7 +65,7 @@ function makeDeps(): Harness {
   const speak = vi.fn<(opts: SpeakSequencedOptions) => void>();
   const notify = vi.fn<(argv: string[]) => void>();
   const webhooks =
-    vi.fn<(ev: KelbrinEvent, targets: WebhookTarget[], allowHttp: boolean) => void>();
+    vi.fn<(ev: TurnbellEvent, targets: WebhookTarget[], allowHttp: boolean) => void>();
   const out = vi.fn<(text: string) => void>();
   const deps: TestDeps = {
     cwd: process.cwd(),
@@ -90,13 +90,13 @@ function outText(out: ReturnType<typeof vi.fn>): string {
 }
 
 describe("runTest default (live local check)", () => {
-  it("should_drive_local_sinks_with_the_kelbrin_done_line_and_not_fire_webhooks", async () => {
+  it("should_drive_local_sinks_with_the_turnbell_done_line_and_not_fire_webhooks", async () => {
     configureGlobal();
     const { deps, speak, notify, webhooks } = makeDeps();
     const code = await runTest([], deps, NOW);
     expect(code).toBe(0);
     expect(spokenText(speak)).toBe(
-      `kelbrin response is ready in ${projectLabel(process.cwd())}`,
+      `turnbell response is ready in ${projectLabel(process.cwd())}`,
     );
     expect(notify).toHaveBeenCalledTimes(1);
     expect(webhooks).not.toHaveBeenCalled();
@@ -107,12 +107,12 @@ describe("runTest default (live local check)", () => {
     const { deps } = makeDeps();
     await runTest([], deps, NOW);
     const line = readEventsLog();
-    expect(line).toContain("kelbrin-test done");
+    expect(line).toContain("turnbell-test done");
   });
 });
 
 function readEventsLog(): string {
-  return readFileSync(join(kelbrinHomeDir, "events.log"), "utf8").trim();
+  return readFileSync(join(turnbellHomeDir, "events.log"), "utf8").trim();
 }
 
 describe("runTest --webhook", () => {
@@ -139,9 +139,9 @@ describe("runTest --show-payload", () => {
     const payload = JSON.parse(outText(out)) as Record<string, unknown>;
     expect(payload).toMatchObject({
       v: 1,
-      agent: "kelbrin-test",
+      agent: "turnbell-test",
       event: "done",
-      summary: "kelbrin test",
+      summary: "turnbell test",
       project: projectLabel(process.cwd()),
     });
     expect(payload.ts).toBe(NOW.toISOString());

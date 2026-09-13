@@ -1,16 +1,16 @@
 /**
- * The codex adapter — wires OpenAI's `codex` CLI to kelbrin.
+ * The codex adapter — wires OpenAI's `codex` CLI to turnbell.
  *
  * Two verified integration points (docs: learn.chatgpt.com/docs/config-file,
  * learn.chatgpt.com/docs/hooks):
  *   1. `~/.codex/config.toml` top-level `notify = [...]` runs a command on the
  *      `agent-turn-complete` event, passing a single JSON string as the LAST
  *      argv argument. Fields are kebab-case (`cwd`, `last-assistant-message`).
- *      kelbrin wires this to `kelbrin emit ... --payload-argv` (done + read-aloud).
+ *      turnbell wires this to `turnbell emit ... --payload-argv` (done + read-aloud).
  *   2. `~/.codex/hooks.json` (Claude-style) fires a `PermissionRequest` command
  *      hook, delivering its payload (snake_case `cwd`, `tool_name`) on STDIN.
- *      kelbrin wires this to `kelbrin emit ... --payload-stdin` (blocked). Codex
- *      treats exit 0 with no stdout as "no decision", so kelbrin's silent emit
+ *      turnbell wires this to `turnbell emit ... --payload-stdin` (blocked). Codex
+ *      treats exit 0 with no stdout as "no decision", so turnbell's silent emit
  *      never allows or denies — it only announces.
  *
  * Read-aloud reads `last-assistant-message` from the notify payload DIRECTLY;
@@ -28,12 +28,12 @@
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { kelbrinHome } from "../core/config.ts";
+import { turnbellHome } from "../core/config.ts";
 import type { EventName } from "../core/config.ts";
-import type { KelbrinEvent } from "../core/events.ts";
+import type { TurnbellEvent } from "../core/events.ts";
 import { projectLabel } from "../core/events.ts";
 import { unwireJsonFile, unwireTextFile, wireJsonFile, wireTextFile } from "./diffwire.ts";
-import { legacyCommandVariant, removeKelbrinHooks } from "./hooks.ts";
+import { legacyCommandVariant, removeTurnbellHooks } from "./hooks.ts";
 import type { Adapter, AdapterDeps, Detection, WireResult } from "./types.ts";
 
 const ID = "codex";
@@ -49,11 +49,11 @@ const HOOKS_LEDGER_KEY = "codex:hooks";
 const LAST_MESSAGE_FIELD = "last-assistant-message";
 
 /**
- * The `notify` argv kelbrin writes into config.toml. Codex appends the JSON
+ * The `notify` argv turnbell writes into config.toml. Codex appends the JSON
  * payload as the trailing argv, which `emit`'s `--payload-argv` consumes.
  */
 const NOTIFY_ARGV = [
-  "kelbrin",
+  "turnbell",
   "emit",
   "--agent",
   "codex",
@@ -64,7 +64,7 @@ const NOTIFY_ARGV = [
 
 /** hooks.json PermissionRequest command; payload arrives on stdin. */
 const BLOCKED_COMMAND =
-  "kelbrin emit --agent codex --event blocked --payload-stdin";
+  "turnbell emit --agent codex --event blocked --payload-stdin";
 const HOOK_EVENT = "PermissionRequest";
 const HOOK_TYPE_COMMAND = "command";
 /** Matchers are regexes compiled against tool names; `.*` is the catch-all. */
@@ -112,7 +112,7 @@ function readFileOrNull(path: string): string | null {
 
 // --- config.toml notify patch (line-based, no TOML dependency) --------------
 
-/** The exact `notify` TOML line kelbrin owns. */
+/** The exact `notify` TOML line turnbell owns. */
 function notifyLine(): string {
   const items = NOTIFY_ARGV.map((item) => `"${item}"`).join(", ");
   return `notify = [${items}]`;
@@ -217,7 +217,7 @@ function patchNotify(original: string | null): string {
 }
 
 /**
- * Surgically strip the top-level kelbrin `notify` assignment, leaving every
+ * Surgically strip the top-level turnbell `notify` assignment, leaving every
  * other key untouched. Absent notify ⇒ original returned as-is; absent file
  * ⇒ `null` (nothing to write).
  */
@@ -243,7 +243,7 @@ const NOTIFY_BACKUP_FILE = "codex-notify.bak";
 
 /** Where a pre-existing user `notify` is archived across wire → unwire. */
 function codexNotifyBackupPath(): string {
-  return join(kelbrinHome(), NOTIFY_BACKUP_FILE);
+  return join(turnbellHome(), NOTIFY_BACKUP_FILE);
 }
 
 /** Read the archived notify text, or `null` when there is none. Never throws. */
@@ -290,9 +290,9 @@ function extractNotify(original: string | null): string | null {
 }
 
 /**
- * Archive the user's own pre-existing `notify` before kelbrin overwrites it, so
+ * Archive the user's own pre-existing `notify` before turnbell overwrites it, so
  * `unwire` can restore it later. A stale backup (no user notify, or the
- * existing notify is already kelbrin's own) is cleared instead.
+ * existing notify is already turnbell's own) is cleared instead.
  */
 function archiveExistingNotify(original: string | null): void {
   const existing = extractNotify(original);
@@ -303,7 +303,7 @@ function archiveExistingNotify(original: string | null): void {
   deleteNotifyBackup();
 }
 
-/** Splice the archived text into kelbrin's notify range within `current`. */
+/** Splice the archived text into turnbell's notify range within `current`. */
 function restoreNotifyRange(current: string, backup: string): string {
   const lines = current.split(NEWLINE);
   const limit = firstTableHeaderIndex(lines);
@@ -316,7 +316,7 @@ function restoreNotifyRange(current: string, backup: string): string {
 }
 
 /**
- * Unwire transform: restore the user's archived `notify` in place of kelbrin's
+ * Unwire transform: restore the user's archived `notify` in place of turnbell's
  * when a backup exists (consuming and deleting it), else fall back to the
  * plain delete (`removeNotify`) — preserving today's no-backup behavior.
  */
@@ -333,7 +333,7 @@ function restoreOrRemoveNotify(current: string | null): string | null {
 // --- hooks.json PermissionRequest patch (Claude-style JSON) -----------------
 
 /**
- * kelbrin's own blocked-hook command forms — current plus the pre-rename
+ * turnbell's own blocked-hook command forms — current plus the pre-rename
  * (hollr) one old installs wrote; both count as ours for strip/unwire.
  */
 const BLOCKED_COMMANDS: ReadonlySet<string> = new Set([
@@ -341,7 +341,7 @@ const BLOCKED_COMMANDS: ReadonlySet<string> = new Set([
   legacyCommandVariant(BLOCKED_COMMAND),
 ]);
 
-/** True when a PermissionRequest entry already carries kelbrin's command. */
+/** True when a PermissionRequest entry already carries turnbell's command. */
 function entryHasCommand(entry: unknown): boolean {
   if (!isRecord(entry) || !Array.isArray(entry.hooks)) {
     return false;
@@ -354,7 +354,7 @@ function entryHasCommand(entry: unknown): boolean {
   );
 }
 
-/** Append kelbrin's PermissionRequest entry unless it is already present. */
+/** Append turnbell's PermissionRequest entry unless it is already present. */
 function appendPermissionEntry(existing: unknown): unknown[] {
   const list = Array.isArray(existing) ? existing : [];
   if (list.some(entryHasCommand)) {
@@ -370,7 +370,7 @@ function appendPermissionEntry(existing: unknown): unknown[] {
 }
 
 /**
- * Idempotent mutation adding kelbrin's PermissionRequest hook while preserving
+ * Idempotent mutation adding turnbell's PermissionRequest hook while preserving
  * every unrelated hook event and any pre-existing PermissionRequest entries.
  */
 function addPermissionHook(json: JsonObject): JsonObject {
@@ -384,9 +384,9 @@ function addPermissionHook(json: JsonObject): JsonObject {
   };
 }
 
-/** Surgically remove only kelbrin's PermissionRequest entry, keeping the rest. */
+/** Surgically remove only turnbell's PermissionRequest entry, keeping the rest. */
 function removeHooks(json: JsonObject): JsonObject {
-  return removeKelbrinHooks(json, [HOOK_EVENT], entryHasCommand);
+  return removeTurnbellHooks(json, [HOOK_EVENT], entryHasCommand);
 }
 
 /** Concatenate the non-empty per-file diffs. */
@@ -448,7 +448,7 @@ export const codex: Adapter = {
     return Promise.resolve();
   },
 
-  normalize(raw: unknown, eventHint: EventName): KelbrinEvent | null {
+  normalize(raw: unknown, eventHint: EventName): TurnbellEvent | null {
     if (!isRecord(raw)) {
       return null;
     }

@@ -1,7 +1,7 @@
 /**
  * Shared surgical hook removal for adapters that append command hooks to a
  * `{ hooks: { <event>: [...] } }` JSON config. Removes only entries the adapter
- * recognizes as its own (via `isKelbrinEntry`), prunes an event array it empties,
+ * recognizes as its own (via `isTurnbellEntry`), prunes an event array it empties,
  * and drops the `hooks` object when nothing remains — preserving `version`, all
  * unrelated events, and any foreign entries. Pure; no I/O.
  */
@@ -13,17 +13,17 @@ type JsonObject = Record<string, unknown>;
  * accept both forms so unwire/re-wire cleans wiring left by old installs.
  */
 export function legacyCommandVariant(command: string): string {
-  return command.replace(/^kelbrin(?= )/, "hollr");
+  return command.replace(/^turnbell(?= )/, "hollr");
 }
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function removeKelbrinHooks(
+export function removeTurnbellHooks(
   json: JsonObject,
   eventKeys: readonly string[],
-  isKelbrinEntry: (entry: unknown) => boolean,
+  isTurnbellEntry: (entry: unknown) => boolean,
 ): JsonObject {
   if (!isRecord(json.hooks)) {
     return json;
@@ -34,7 +34,7 @@ export function removeKelbrinHooks(
     if (!Array.isArray(arr)) {
       continue;
     }
-    const kept = arr.filter((entry) => !isKelbrinEntry(entry));
+    const kept = arr.filter((entry) => !isTurnbellEntry(entry));
     if (kept.length > 0) {
       hooks[event] = kept;
     } else {

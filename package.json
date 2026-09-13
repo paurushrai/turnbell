@@ -1,5 +1,5 @@
 {
-  "name": "kelbrin",
+  "name": "turnbell",
   "version": "1.0.0",
   "description": "Voice, desktop, and webhook notifications for CLI coding agents (Claude Code, Codex, Gemini, Copilot, Cursor & more) — calls out the moment your agent finishes or needs you.",
   "keywords": [
@@ -27,18 +27,18 @@
     "terminal",
     "hooks"
   ],
-  "homepage": "https://github.com/paurushrai/kelbrin#readme",
+  "homepage": "https://github.com/paurushrai/turnbell#readme",
   "bugs": {
-    "url": "https://github.com/paurushrai/kelbrin/issues"
+    "url": "https://github.com/paurushrai/turnbell/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paurushrai/kelbrin.git"
+    "url": "git+https://github.com/paurushrai/turnbell.git"
   },
   "author": "Paurush Rai",
   "type": "module",
   "bin": {
-    "kelbrin": "dist/index.js",
+    "turnbell": "dist/index.js",
     "hollr": "dist/index.js"
   },
   "files": [

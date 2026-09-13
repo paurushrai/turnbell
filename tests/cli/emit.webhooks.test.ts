@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { encodeCwd, type WebhookTarget } from "../../src/core/config.ts";
-import type { KelbrinEvent } from "../../src/core/events.ts";
+import type { TurnbellEvent } from "../../src/core/events.ts";
 import type { Platform } from "../../src/platform/index.ts";
 import type { SpeakSequencedOptions } from "../../src/platform/sequencer.ts";
 import type { EmitDeps } from "../../src/cli/emit.ts";
@@ -14,24 +14,24 @@ import { fireWebhooks } from "../../src/sinks/webhook.ts";
 const CWD = "/Users/me/dev/my-app";
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
+let turnbellHomeDir: string;
 let logPath: string;
-let prevKelbrinHome: string | undefined;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-seam-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  logPath = join(kelbrinHomeDir, "webhook.log");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-seam-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  logPath = join(turnbellHomeDir, "webhook.log");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
   vi.restoreAllMocks();
@@ -46,7 +46,7 @@ const WEBHOOK: WebhookTarget = {
 };
 
 function configureGlobal(overrides: Record<string, unknown>): void {
-  writeFileSync(join(kelbrinHomeDir, "config.json"), JSON.stringify(overrides));
+  writeFileSync(join(turnbellHomeDir, "config.json"), JSON.stringify(overrides));
 }
 
 function fakePlatform(): Platform {
@@ -80,7 +80,7 @@ function makeSeamDeps(fetchFn: typeof fetch): SeamHarness {
     platform: fakePlatform(),
     speak: vi.fn<(opts: SpeakSequencedOptions) => void>(),
     notify: vi.fn<(argv: string[]) => void>(),
-    webhooks: (ev: KelbrinEvent, targets: WebhookTarget[], allowHttp: boolean) => {
+    webhooks: (ev: TurnbellEvent, targets: WebhookTarget[], allowHttp: boolean) => {
       pending = fireWebhooks(ev, targets, { allowHttp, fetchFn: wrapped, logPath });
     },
     awaitWebhooks: () => pending,
@@ -133,7 +133,7 @@ describe("emit → webhook async seam", () => {
 
   it("should_not_fire_webhooks_for_a_muted_project", async () => {
     configureGlobal({ webhooks: [WEBHOOK], allowHttp: false });
-    const projects = join(kelbrinHomeDir, "projects");
+    const projects = join(turnbellHomeDir, "projects");
     mkdirSync(projects, { recursive: true });
     writeFileSync(join(projects, `${encodeCwd(CWD)}.muted`), "");
     const fetchFn = (() =>

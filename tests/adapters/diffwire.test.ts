@@ -29,21 +29,21 @@ interface LedgerEntry {
 }
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-wire-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-wire-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -53,7 +53,7 @@ function target(name: string): string {
 }
 
 function readLedger(): LedgerEntry[] {
-  const raw = readFileSync(join(kelbrinHomeDir, "wired.json"), "utf8");
+  const raw = readFileSync(join(turnbellHomeDir, "wired.json"), "utf8");
   return JSON.parse(raw) as LedgerEntry[];
 }
 
@@ -61,7 +61,7 @@ const IDENTITY = (json: Record<string, unknown>): Record<string, unknown> => jso
 
 const ADD_HOOK = (json: Record<string, unknown>): Record<string, unknown> => ({
   ...json,
-  hook: "kelbrin emit",
+  hook: "turnbell emit",
 });
 
 describe("wireJsonFile", () => {
@@ -69,7 +69,7 @@ describe("wireJsonFile", () => {
     const path = target("config.json");
     const op = wireJsonFile(path, ADD_HOOK, "cc-settings");
     expect(op.changed).toBe(true);
-    expect(op.diff).toContain('+  "hook": "kelbrin emit"');
+    expect(op.diff).toContain('+  "hook": "turnbell emit"');
     expect(existsSync(path)).toBe(false); // not written until apply()
   });
 
@@ -77,7 +77,7 @@ describe("wireJsonFile", () => {
     const path = target("config.json");
     const op = wireJsonFile(path, ADD_HOOK, "cc-settings");
     op.apply();
-    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ hook: "kelbrin emit" });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ hook: "turnbell emit" });
     expect(readFileSync(path, "utf8").endsWith("}\n")).toBe(true);
     const ledger = readLedger();
     expect(ledger).toHaveLength(1);
@@ -90,7 +90,7 @@ describe("wireJsonFile", () => {
     () => {
       const path = target("config.json");
       wireJsonFile(path, ADD_HOOK, "cc-settings").apply();
-      const mode = statSync(join(kelbrinHomeDir, "wired.json")).mode & 0o777;
+      const mode = statSync(join(turnbellHomeDir, "wired.json")).mode & 0o777;
       expect(mode).toBe(0o600);
     },
   );
@@ -105,12 +105,12 @@ describe("wireJsonFile", () => {
 
   it("should_upsert_by_key_and_keep_the_earliest_before_when_wired_twice", () => {
     const path = target("config.json");
-    // First wire records the true pre-kelbrin state (absent → before: null).
-    wireTextFile(path, "kelbrin-v1\n", "cc-settings").apply();
+    // First wire records the true pre-turnbell state (absent → before: null).
+    wireTextFile(path, "turnbell-v1\n", "cc-settings").apply();
     // A later wire of the SAME key must not add a second entry, and must not
-    // overwrite `before` with now-kelbrin-contaminated content — else unwire
-    // would restore a file that already had kelbrin in it.
-    wireTextFile(path, "kelbrin-v2\n", "cc-settings").apply();
+    // overwrite `before` with now-turnbell-contaminated content — else unwire
+    // would restore a file that already had turnbell in it.
+    wireTextFile(path, "turnbell-v2\n", "cc-settings").apply();
     const ledger = readLedger();
     const forKey = ledger.filter((entry) => entry.ledgerKey === "cc-settings");
     expect(forKey).toHaveLength(1);
@@ -124,7 +124,7 @@ describe("wireJsonFile", () => {
     op.apply();
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
       existing: 1,
-      hook: "kelbrin emit",
+      hook: "turnbell emit",
     });
   });
 
@@ -139,7 +139,7 @@ describe("wireJsonFile", () => {
 
 describe("wireTextFile", () => {
   it("should_render_a_line_diff_of_old_vs_new", () => {
-    const path = target("kelbrin.md");
+    const path = target("turnbell.md");
     writeFileSync(path, "line one\nline two\nline three\n");
     const op = wireTextFile(path, "line one\nCHANGED\nline three\n", "cc-md");
     expect(op.changed).toBe(true);
@@ -149,7 +149,7 @@ describe("wireTextFile", () => {
   });
 
   it("should_be_unchanged_when_new_content_equals_existing", () => {
-    const path = target("kelbrin.md");
+    const path = target("turnbell.md");
     writeFileSync(path, "same\n");
     const op = wireTextFile(path, "same\n", "cc-md");
     expect(op.changed).toBe(false);
@@ -159,7 +159,7 @@ describe("wireTextFile", () => {
 
 describe("unwireFromLedger", () => {
   it("should_restore_the_prior_file_byte_identically", () => {
-    const path = target("kelbrin.md");
+    const path = target("turnbell.md");
     const original = "original\nbytes\n";
     writeFileSync(path, original);
     wireTextFile(path, "brand new content\n", "cc-md").apply();
@@ -191,7 +191,7 @@ describe("unwireFromLedger", () => {
 
 describe("wireMarkedSection", () => {
   const KEY = "cc:readaloud";
-  const MARKER = "kelbrin:readaloud";
+  const MARKER = "turnbell:readaloud";
 
   it("should_append_a_marked_block_to_an_existing_file", () => {
     const path = target("CLAUDE.md");
@@ -270,13 +270,13 @@ describe("unwireJsonFile", () => {
 
   it("should_surgically_rewrite_current_content_preserving_foreign_keys", () => {
     const path = target("settings.json");
-    writeFileSync(path, `${JSON.stringify({ foo: "kelbrin", userHook: 1 }, null, 2)}\n`);
+    writeFileSync(path, `${JSON.stringify({ foo: "turnbell", userHook: 1 }, null, 2)}\n`);
     wireJsonFile(path, (j) => j, KEY).apply(); // record a ledger entry for KEY
     // user adds their own key AFTER wiring:
-    writeFileSync(path, `${JSON.stringify({ foo: "kelbrin", userHook: 1, mine: 2 }, null, 2)}\n`);
+    writeFileSync(path, `${JSON.stringify({ foo: "turnbell", userHook: 1, mine: 2 }, null, 2)}\n`);
     unwireJsonFile(path, removeFoo, KEY);
     const out = JSON.parse(readFileSync(path, "utf8"));
-    expect(out).toEqual({ userHook: 1, mine: 2 }); // kelbrin's `foo` gone, user keys kept
+    expect(out).toEqual({ userHook: 1, mine: 2 }); // turnbell's `foo` gone, user keys kept
     expect(listWiredKeys()).not.toContain(KEY);
   });
 
@@ -296,7 +296,7 @@ describe("unwireJsonFile", () => {
 
 describe("unwireCreatedFile", () => {
   it("should_delete_the_file_and_drop_the_key_even_if_edited", () => {
-    const path = target("kelbrin.md");
+    const path = target("turnbell.md");
     writeFileSync(path, "hand-edited by user\n");
     wireTextFile(path, "orig", "x:command").apply();
     writeFileSync(path, "hand-edited by user\n");
@@ -315,11 +315,11 @@ describe("unwireTextFile", () => {
 
   it("should_write_the_transformed_content_and_drop_the_key", () => {
     const path = target("notes.txt");
-    writeFileSync(path, "kelbrin line\nuser line\n");
-    wireTextFile(path, "kelbrin line\nuser line\n", KEY).apply();
+    writeFileSync(path, "turnbell line\nuser line\n");
+    wireTextFile(path, "turnbell line\nuser line\n", KEY).apply();
     unwireTextFile(
       path,
-      (current) => (current ?? "").replace("kelbrin line\n", ""),
+      (current) => (current ?? "").replace("turnbell line\n", ""),
       KEY,
     );
     expect(readFileSync(path, "utf8")).toBe("user line\n");
@@ -345,10 +345,10 @@ describe("unwireTextFile", () => {
   });
 });
 
-describe("hollr→kelbrin rename compat", () => {
+describe("hollr→turnbell rename compat", () => {
   const KEY = "rename:test";
   const LEGACY_MARKER = "hollr:readaloud";
-  const MARKER = "kelbrin:readaloud";
+  const MARKER = "turnbell:readaloud";
   const LEGACY_BLOCK = [
     "# My memory",
     "",
@@ -385,10 +385,10 @@ describe("hollr→kelbrin rename compat", () => {
   });
 
   it("should_reverse_the_stale_artifact_when_a_ledger_keys_path_moves", () => {
-    // A created file tracked under a key moved (hollr.md → kelbrin.md):
+    // A created file tracked under a key moved (hollr.md → turnbell.md):
     // re-wiring must delete the stale legacy file, not orphan it.
     const legacyPath = target("hollr.md");
-    const newPath = target("kelbrin.md");
+    const newPath = target("turnbell.md");
     const first = wireTextFile(legacyPath, "legacy command\n", KEY);
     first.apply();
     expect(existsSync(legacyPath)).toBe(true);

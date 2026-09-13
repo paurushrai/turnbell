@@ -9,7 +9,7 @@ let dir: string;
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "kelbrin-prune-"));
+  dir = mkdtempSync(join(tmpdir(), "turnbell-prune-"));
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

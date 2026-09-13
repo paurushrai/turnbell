@@ -24,16 +24,16 @@ const NOTIFICATION_PAYLOAD = JSON.parse(
 const TRANSCRIPT_FIXTURE = join(FIXTURES, "transcript.jsonl");
 
 const STOP_COMMAND =
-  "kelbrin emit --agent claude-code --event done --payload-stdin";
+  "turnbell emit --agent claude-code --event done --payload-stdin";
 const NOTIFICATION_COMMAND =
-  "kelbrin emit --agent claude-code --event blocked --payload-stdin";
+  "turnbell emit --agent claude-code --event blocked --payload-stdin";
 const LEDGER_KEY = "claude-code:settings";
 const COMMAND_LEDGER_KEY = "claude-code:command";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 /** `which` fake that resolves nothing (claude not on PATH). */
 const whichNone = (): string | null => null;
@@ -50,7 +50,7 @@ function settingsPath(): string {
 }
 
 function commandPath(): string {
-  return join(home, ".claude", "commands", "kelbrin.md");
+  return join(home, ".claude", "commands", "turnbell.md");
 }
 
 function writeSettings(json: unknown): void {
@@ -66,19 +66,19 @@ function readSettings(): Record<string, unknown> {
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-cc-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-cc-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -349,14 +349,14 @@ describe("claudeCode.wire", () => {
 });
 
 describe("claudeCode.wire slash command file", () => {
-  it("should_write_the_kelbrin_md_slash_command", async () => {
+  it("should_write_the_turnbell_md_slash_command", async () => {
     await claudeCode.wire(deps());
     expect(existsSync(commandPath())).toBe(true);
     const md = readFileSync(commandPath(), "utf8");
     expect(md).toContain(
-      "description: Control kelbrin (pause/resume/stop/status/mute/doctor)",
+      "description: Control turnbell (pause/resume/stop/status/mute/doctor)",
     );
-    expect(md).toContain("kelbrin $ARGUMENTS");
+    expect(md).toContain("turnbell $ARGUMENTS");
     // `init` is terminal-only and must be documented as unavailable here.
     expect(md).toMatch(/init/i);
     expect(md).toMatch(/terminal-only/i);
@@ -364,7 +364,7 @@ describe("claudeCode.wire slash command file", () => {
 
   it("should_include_the_command_file_addition_in_the_wire_diff", async () => {
     const result = await claudeCode.wire(deps());
-    expect(result.diff).toContain("kelbrin $ARGUMENTS");
+    expect(result.diff).toContain("turnbell $ARGUMENTS");
   });
 
   it("should_be_idempotent_for_the_command_file", async () => {
@@ -460,7 +460,7 @@ describe("claudeCode.unwire", () => {
 
   it("should_not_resurrect_legacy_v1_entries_on_unwire", async () => {
     // The legacy migration in `wireSettings` is one-way: it permanently retires
-    // the v0.1.x integration. Surgical unwire only removes kelbrin's OWN
+    // the v0.1.x integration. Surgical unwire only removes turnbell's OWN
     // Stop/Notification entries from the file's current content — it must not
     // (and cannot, since nothing tracks it) bring the legacy junk back.
     writeSettings({
@@ -498,7 +498,7 @@ describe("claudeCode.unwire", () => {
     expect(existsSync(commandPath())).toBe(false);
   });
 
-  it("should_unwire_only_kelbrin_hooks_and_preserve_a_foreign_hook", async () => {
+  it("should_unwire_only_turnbell_hooks_and_preserve_a_foreign_hook", async () => {
     const wiredDeps = deps();
     await claudeCode.wire(wiredDeps);
     const path = settingsPath();
@@ -512,7 +512,7 @@ describe("claudeCode.unwire", () => {
     const stopCommands = (out.hooks?.Stop ?? []).flatMap((e: { hooks: { command: string }[] }) =>
       e.hooks.map((h) => h.command),
     );
-    expect(stopCommands).toEqual(["my-own-thing"]); // kelbrin's Stop gone, user's kept
+    expect(stopCommands).toEqual(["my-own-thing"]); // turnbell's Stop gone, user's kept
     expect(out.hooks.PreToolUse).toEqual([{ hooks: [{ command: "user-pretool" }] }]);
     expect(existsSync(commandPath())).toBe(false);
   });
@@ -565,7 +565,7 @@ describe("claudeCode.detect", () => {
   });
 });
 
-describe("claudeCode hollr→kelbrin rename compat", () => {
+describe("claudeCode hollr→turnbell rename compat", () => {
   const LEGACY_STOP = "hollr emit --agent claude-code --event done --payload-stdin";
   const LEGACY_NOTIFICATION = "hollr emit --agent claude-code --event blocked --payload-stdin";
 

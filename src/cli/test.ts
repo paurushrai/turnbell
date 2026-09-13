@@ -1,5 +1,5 @@
 /**
- * `kelbrin test [--webhook] [--show-payload]`: fire a synthetic "done" event so a
+ * `turnbell test [--webhook] [--show-payload]`: fire a synthetic "done" event so a
  * user can verify their setup live. It composes existing subsystems and adds NO
  * core logic — the same {@link route} the emit hook uses drives the real local
  * sinks (voice + desktop notify), which is exactly the live check a user does by
@@ -14,7 +14,7 @@
 
 import type { EventName, WebhookTarget } from "../core/config.ts";
 import { loadConfig } from "../core/config.ts";
-import type { KelbrinEvent } from "../core/events.ts";
+import type { TurnbellEvent } from "../core/events.ts";
 import { projectLabel } from "../core/events.ts";
 import { route } from "../core/router.ts";
 import type { Platform } from "../platform/index.ts";
@@ -22,10 +22,10 @@ import type { speakSequenced } from "../platform/sequencer.ts";
 import { webhookPayload } from "../sinks/webhook.ts";
 import { settleWebhooks } from "./emit.ts";
 
-const TEST_AGENT = "kelbrin-test";
-const TEST_TITLE = "kelbrin";
+const TEST_AGENT = "turnbell-test";
+const TEST_TITLE = "turnbell";
 const TEST_EVENT: EventName = "done";
-const TEST_SUMMARY = "kelbrin test";
+const TEST_SUMMARY = "turnbell test";
 const PAYLOAD_INDENT = 2;
 const EXIT_OK = 0;
 
@@ -37,7 +37,7 @@ export interface TestDeps {
   speak: typeof speakSequenced;
   notify(argv: string[]): void;
   /** Start (do not await) webhook delivery; mirrors the emit sink contract. */
-  webhooks(ev: KelbrinEvent, targets: WebhookTarget[], allowHttp: boolean): void;
+  webhooks(ev: TurnbellEvent, targets: WebhookTarget[], allowHttp: boolean): void;
   /** Resolve when collected webhook deliveries settle (never rejects). */
   awaitWebhooks(): Promise<void>;
   /** Sink for `--show-payload` output. */
@@ -56,8 +56,8 @@ function parseTestFlags(args: string[]): TestFlags {
   };
 }
 
-/** The fixed synthetic event: a `done` turn from the pseudo-agent `kelbrin-test`. */
-function buildTestEvent(cwd: string, now: Date): KelbrinEvent {
+/** The fixed synthetic event: a `done` turn from the pseudo-agent `turnbell-test`. */
+function buildTestEvent(cwd: string, now: Date): TurnbellEvent {
   return {
     v: 1,
     ts: now.toISOString(),
