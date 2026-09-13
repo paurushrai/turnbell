@@ -1,5 +1,5 @@
 /**
- * The antigravity adapter — wires Google's `agy` CLI to kelbrin. It maps agy's
+ * The antigravity adapter — wires Google's `agy` CLI to turnbell. It maps agy's
  * single relevant lifecycle event (`Stop`) to a `done` announcement via a native
  * command hook in the global `~/.gemini/hooks.json`.
  *
@@ -9,21 +9,21 @@
  *
  * CRITICAL — Stop hook stdout contract: agy parses the handler's STDOUT as
  * `{"decision": "continue"|<other>}`; `"continue"` re-enters the loop and HANGS
- * the agent. `kelbrin emit` prints nothing on the happy path, so the wired command
+ * the agent. `turnbell emit` prints nothing on the happy path, so the wired command
  * appends `printf '{}'` to guarantee a safe, non-"continue" decision.
  *
  * `normalize`/`readLastResponse`/`detect` run inside (or adjacent to) a hook and
  * MUST NOT throw: every read degrades defensively. `wire` goes through
  * {@link wireJsonFile} so every change is previewable; `unwire` is surgical —
- * {@link unwireJsonFile} strips only kelbrin's own `Stop` handler from the named
- * `"kelbrin"` entry, so edits a user makes after wiring survive.
+ * {@link unwireJsonFile} strips only turnbell's own `Stop` handler from the named
+ * `"turnbell"` entry, so edits a user makes after wiring survive.
  */
 
 import { statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { EventName } from "../core/config.ts";
-import type { KelbrinEvent } from "../core/events.ts";
+import type { TurnbellEvent } from "../core/events.ts";
 import { projectLabel } from "../core/events.ts";
 import { unwireJsonFile, wireJsonFile } from "./diffwire.ts";
 import { legacyCommandVariant } from "./hooks.ts";
@@ -36,8 +36,8 @@ const BINARY = "agy";
 const CONFIG_DIR = ".gemini";
 const HOOKS_FILE = "hooks.json";
 
-/** Named hook entry kelbrin owns in agy's `hooks.json`; other entries are left untouched. */
-const HOOK_NAME = "kelbrin";
+/** Named hook entry turnbell owns in agy's `hooks.json`; other entries are left untouched. */
+const HOOK_NAME = "turnbell";
 /** Named hook entry written by pre-rename (hollr) versions. */
 const LEGACY_HOOK_NAME = "hollr";
 const HOOK_STOP = "Stop";
@@ -48,8 +48,8 @@ const HOOK_TYPE_COMMAND = "command";
  * requirement: it prints a non-"continue" decision so agy does not re-enter its
  * loop and hang. Do not remove it.
  */
-const KELBRIN_STOP_COMMAND =
-  "kelbrin emit --agent antigravity --event done --payload-stdin; printf '{}'";
+const TURNBELL_STOP_COMMAND =
+  "turnbell emit --agent antigravity --event done --payload-stdin; printf '{}'";
 
 type JsonObject = Record<string, unknown>;
 
@@ -81,27 +81,27 @@ function workspaceCwd(raw: JsonObject): string {
 
 // --- wiring -----------------------------------------------------------------
 
-/** True when a `Stop` handler array already carries kelbrin's command. */
-function stopHasKelbrin(stop: unknown): boolean {
+/** True when a `Stop` handler array already carries turnbell's command. */
+function stopHasTurnbell(stop: unknown): boolean {
   if (!Array.isArray(stop)) {
     return false;
   }
   return stop.some(
-    (handler) => isRecord(handler) && handler.command === KELBRIN_STOP_COMMAND,
+    (handler) => isRecord(handler) && handler.command === TURNBELL_STOP_COMMAND,
   );
 }
 
 /**
- * Idempotent mutation that adds kelbrin's `Stop` command handler under the named
- * `"kelbrin"` entry, preserving every other named hook entry and any pre-existing
- * events on the kelbrin entry itself.
+ * Idempotent mutation that adds turnbell's `Stop` command handler under the named
+ * `"turnbell"` entry, preserving every other named hook entry and any pre-existing
+ * events on the turnbell entry itself.
  */
 function addStopHook(json: JsonObject): JsonObject {
   const existing = isRecord(json[HOOK_NAME]) ? json[HOOK_NAME] : {};
   const currentStop = Array.isArray(existing[HOOK_STOP]) ? existing[HOOK_STOP] : [];
-  const nextStop = stopHasKelbrin(currentStop)
+  const nextStop = stopHasTurnbell(currentStop)
     ? currentStop
-    : [...currentStop, { type: HOOK_TYPE_COMMAND, command: KELBRIN_STOP_COMMAND }];
+    : [...currentStop, { type: HOOK_TYPE_COMMAND, command: TURNBELL_STOP_COMMAND }];
   return {
     ...json,
     [HOOK_NAME]: {
@@ -114,31 +114,31 @@ function addStopHook(json: JsonObject): JsonObject {
 // --- surgical unwire ---------------------------------------------------------
 
 /**
- * kelbrin's own command forms — current plus the pre-rename (hollr) one old
+ * turnbell's own command forms — current plus the pre-rename (hollr) one old
  * installs wrote; both count as ours for strip/unwire.
  */
-const KELBRIN_STOP_COMMANDS: ReadonlySet<string> = new Set([
-  KELBRIN_STOP_COMMAND,
-  legacyCommandVariant(KELBRIN_STOP_COMMAND),
+const TURNBELL_STOP_COMMANDS: ReadonlySet<string> = new Set([
+  TURNBELL_STOP_COMMAND,
+  legacyCommandVariant(TURNBELL_STOP_COMMAND),
 ]);
 
-/** True for a `Stop` handler carrying kelbrin's own command. */
-function isKelbrinEntry(entry: unknown): boolean {
+/** True for a `Stop` handler carrying turnbell's own command. */
+function isTurnbellEntry(entry: unknown): boolean {
   return (
     isRecord(entry) &&
     typeof entry.command === "string" &&
-    KELBRIN_STOP_COMMANDS.has(entry.command)
+    TURNBELL_STOP_COMMANDS.has(entry.command)
   );
 }
 
 /**
- * Strip kelbrin's own `Stop` handler from the named `groupName` entry,
+ * Strip turnbell's own `Stop` handler from the named `groupName` entry,
  * preserving any foreign handlers on it and every other top-level named hook
  * entry. Drops the group key once its `Stop` array empties out.
  *
- * agy's on-disk shape is `{ kelbrin: { Stop: [...] }, <other-named-entry>: {...} }`
+ * agy's on-disk shape is `{ turnbell: { Stop: [...] }, <other-named-entry>: {...} }`
  * — a named hook group, not the `{ hooks: { <event>: [...] } }` shape
- * {@link removeKelbrinHooks} targets — so this can't reuse that shared helper.
+ * {@link removeTurnbellHooks} targets — so this can't reuse that shared helper.
  */
 function removeHooksFromGroup(json: JsonObject, groupName: string): JsonObject {
   const existing = json[groupName];
@@ -146,7 +146,7 @@ function removeHooksFromGroup(json: JsonObject, groupName: string): JsonObject {
     return json;
   }
   const stop = Array.isArray(existing[HOOK_STOP]) ? existing[HOOK_STOP] : [];
-  const kept = stop.filter((entry) => !isKelbrinEntry(entry));
+  const kept = stop.filter((entry) => !isTurnbellEntry(entry));
   const nextEntry: JsonObject = { ...existing };
   if (kept.length > 0) {
     nextEntry[HOOK_STOP] = kept;
@@ -160,7 +160,7 @@ function removeHooksFromGroup(json: JsonObject, groupName: string): JsonObject {
   return { ...json, [groupName]: nextEntry };
 }
 
-/** Strip kelbrin's handlers from both the current and the pre-rename group. */
+/** Strip turnbell's handlers from both the current and the pre-rename group. */
 function removeHooks(json: JsonObject): JsonObject {
   return removeHooksFromGroup(
     removeHooksFromGroup(json, LEGACY_HOOK_NAME),
@@ -208,7 +208,7 @@ export const antigravity: Adapter = {
     return Promise.resolve();
   },
 
-  normalize(raw: unknown, eventHint: EventName): KelbrinEvent | null {
+  normalize(raw: unknown, eventHint: EventName): TurnbellEvent | null {
     if (!isRecord(raw)) {
       return null;
     }

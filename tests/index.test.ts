@@ -10,24 +10,24 @@ import { run } from "../src/index.ts";
 const packageJson = JSON.parse(
   readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"),
 ) as { version: string };
-const BANNER = `kelbrin ${packageJson.version}`;
+const BANNER = `turnbell ${packageJson.version}`;
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-cli-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-cli-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
   vi.restoreAllMocks();
@@ -76,12 +76,12 @@ describe("run: unknown / absent command", () => {
 
 describe("run: control commands", () => {
   it.each(["pause", "resume", "stop"])(
-    "should_print_a_kelbrin_line_and_return_0_for_%s",
+    "should_print_a_turnbell_line_and_return_0_for_%s",
     async (cmd) => {
       const out = captureStdout();
       const code = await run([cmd]);
       expect(code).toBe(0);
-      expect(stdoutText(out)).toContain("kelbrin:");
+      expect(stdoutText(out)).toContain("turnbell:");
     },
   );
 });

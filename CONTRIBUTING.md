@@ -1,6 +1,6 @@
-# Contributing to kelbrin
+# Contributing to turnbell
 
-Thanks for helping make kelbrin better. This guide gets you from clone to merged PR.
+Thanks for helping make turnbell better. This guide gets you from clone to merged PR.
 
 ## Prerequisites
 
@@ -10,8 +10,8 @@ Thanks for helping make kelbrin better. This guide gets you from clone to merged
 ## Local setup
 
 ```bash
-git clone https://github.com/paurushrai/kelbrin.git
-cd kelbrin
+git clone https://github.com/paurushrai/turnbell.git
+cd turnbell
 npm ci
 npm run build   # bundle src/index.ts -> dist/index.js (tsup)
 npm test        # vitest, full suite
@@ -32,24 +32,24 @@ node dist/index.js doctor
 - `src/cli/` — subcommands (`init`, `emit`, `run`, `status`, `mute`, `quiet`, …).
 - `src/platform/` — per-OS voice/notify/sound engines.
 - `src/sinks/` — the webhook sink (the only code that touches the network).
-- `tests/` — mirrors `src/`; every test is hermetic (temp `KELBRIN_HOME`, injected
+- `tests/` — mirrors `src/`; every test is hermetic (temp `TURNBELL_HOME`, injected
   clock and IO).
 
 ## Working style
 
 - **Test-driven.** Write a failing test first, then the minimal code to pass it.
   Cover happy path, edges, and failure modes.
-- **Anything reachable from a hook must never throw.** `kelbrin emit` and the
+- **Anything reachable from a hook must never throw.** `turnbell emit` and the
   router run inside an agent's hook; on any error they must degrade to exit 0 so
   they never break an agent turn.
 - **Keep it hermetic.** Mock time, randomness, network, and the filesystem home
-  (`KELBRIN_HOME`). No test may touch the developer's real `~/.config/kelbrin`.
+  (`TURNBELL_HOME`). No test may touch the developer's real `~/.config/turnbell`.
 - **Coverage ≥ 80%.**
 
 ## Commits & PRs
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/):
-  `type(scope): summary` (e.g. `feat(cli): add kelbrin quiet`).
+  `type(scope): summary` (e.g. `feat(cli): add turnbell quiet`).
 - Keep each commit green (build + tests passing).
 - Open a PR against `main` with **what / why / how-to-test**. CI (build + tests
   on Node 20 and 22) must be green before merge.

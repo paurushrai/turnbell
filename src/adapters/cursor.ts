@@ -1,5 +1,5 @@
 /**
- * The cursor adapter — wires the Cursor Agent (`cursor-agent`) CLI to kelbrin via
+ * The cursor adapter — wires the Cursor Agent (`cursor-agent`) CLI to turnbell via
  * Cursor Hooks, which Cursor loads from `~/.cursor/hooks.json` and shares across
  * the IDE and the CLI. It maps the `stop` hook to a `done` announcement.
  *
@@ -21,18 +21,18 @@
  * `normalize`/`readLastResponse`/`detect` run inside (or adjacent to) a hook and
  * MUST NOT throw: every read degrades defensively. `wire` goes through
  * {@link wireJsonFile} so every change is previewable; `unwire` is surgical —
- * {@link unwireJsonFile} strips only kelbrin's own `stop` entry via
- * {@link removeKelbrinHooks}, so edits a user makes after wiring survive.
+ * {@link unwireJsonFile} strips only turnbell's own `stop` entry via
+ * {@link removeTurnbellHooks}, so edits a user makes after wiring survive.
  */
 
 import { statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { EventName } from "../core/config.ts";
-import type { KelbrinEvent } from "../core/events.ts";
+import type { TurnbellEvent } from "../core/events.ts";
 import { projectLabel } from "../core/events.ts";
 import { unwireJsonFile, wireJsonFile } from "./diffwire.ts";
-import { legacyCommandVariant, removeKelbrinHooks } from "./hooks.ts";
+import { legacyCommandVariant, removeTurnbellHooks } from "./hooks.ts";
 import type { Adapter, AdapterDeps, Detection, WireResult } from "./types.ts";
 
 const ID = "cursor";
@@ -47,7 +47,7 @@ const HOOKS_VERSION = 1;
 const HOOK_STOP = "stop";
 const HOOK_TYPE_COMMAND = "command";
 
-const STOP_COMMAND = "kelbrin emit --agent cursor --event done --payload-stdin";
+const STOP_COMMAND = "turnbell emit --agent cursor --event done --payload-stdin";
 
 type JsonObject = Record<string, unknown>;
 
@@ -91,7 +91,7 @@ function resolveCwd(raw: JsonObject): string {
 
 // --- wiring -----------------------------------------------------------------
 
-/** Append kelbrin's `{type, command}` entry to a hook array unless already present. */
+/** Append turnbell's `{type, command}` entry to a hook array unless already present. */
 function appendHook(existing: unknown, command: string): unknown[] {
   const list = Array.isArray(existing) ? existing : [];
   if (list.some((entry) => isRecord(entry) && entry.command === command)) {
@@ -121,26 +121,26 @@ function addHooks(json: JsonObject): JsonObject {
 // --- surgical unwire ---------------------------------------------------------
 
 /**
- * kelbrin's own command forms — current plus the pre-rename (hollr) one old
+ * turnbell's own command forms — current plus the pre-rename (hollr) one old
  * installs wrote; both count as ours for strip/unwire.
  */
-const KELBRIN_COMMANDS: ReadonlySet<string> = new Set([
+const TURNBELL_COMMANDS: ReadonlySet<string> = new Set([
   STOP_COMMAND,
   legacyCommandVariant(STOP_COMMAND),
 ]);
 
-/** True for a `stop` entry carrying kelbrin's own command. */
-function isKelbrinEntry(entry: unknown): boolean {
+/** True for a `stop` entry carrying turnbell's own command. */
+function isTurnbellEntry(entry: unknown): boolean {
   return (
     isRecord(entry) &&
     typeof entry.command === "string" &&
-    KELBRIN_COMMANDS.has(entry.command)
+    TURNBELL_COMMANDS.has(entry.command)
   );
 }
 
-/** Strip kelbrin's `stop` entry, preserving any foreign entries and every other event. */
+/** Strip turnbell's `stop` entry, preserving any foreign entries and every other event. */
 function removeHooks(json: JsonObject): JsonObject {
-  return removeKelbrinHooks(json, [HOOK_STOP], isKelbrinEntry);
+  return removeTurnbellHooks(json, [HOOK_STOP], isTurnbellEntry);
 }
 
 // --- adapter ----------------------------------------------------------------
@@ -184,7 +184,7 @@ export const cursor: Adapter = {
     return Promise.resolve();
   },
 
-  normalize(raw: unknown, eventHint: EventName): KelbrinEvent | null {
+  normalize(raw: unknown, eventHint: EventName): TurnbellEvent | null {
     if (!isRecord(raw)) {
       return null;
     }

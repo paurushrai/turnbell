@@ -2,7 +2,7 @@
  * Diff-transparent file wiring with a reversal ledger. Adapters mutate an
  * agent's own config through these two writers so every change is (a) previewed
  * as a diff before it lands and (b) fully reversible: each `apply()` writes the
- * file atomically and records the pre-existing content in `<KELBRIN_HOME>/wired.json`,
+ * file atomically and records the pre-existing content in `<TURNBELL_HOME>/wired.json`,
  * so {@link unwireFromLedger} can restore it byte-for-byte — or delete a file
  * that did not exist before.
  *
@@ -20,7 +20,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import { kelbrinHome } from "../core/config.ts";
+import { turnbellHome } from "../core/config.ts";
 
 /** A prepared, previewable write. Nothing touches disk until `apply()`. */
 export interface WireOp {
@@ -76,7 +76,7 @@ function parseJsonObject(raw: string): JsonObject {
   }
 }
 
-/** Canonical serialization used for every JSON file kelbrin writes. */
+/** Canonical serialization used for every JSON file turnbell writes. */
 function serializeJson(value: JsonObject): string {
   return `${JSON.stringify(value, null, JSON_INDENT)}${TRAILING_NEWLINE}`;
 }
@@ -104,7 +104,7 @@ function writeFileAtomic(path: string, content: string, mode?: number): void {
 }
 
 function ledgerPath(): string {
-  return join(kelbrinHome(), LEDGER_FILE);
+  return join(turnbellHome(), LEDGER_FILE);
 }
 
 function isLedgerEntry(value: unknown): value is LedgerEntry {
@@ -140,14 +140,14 @@ function readLedger(): LedgerEntry[] {
 
 /**
  * The ledger keys of every currently-wired change, for read-only callers like
- * `kelbrin status`. Defensive: a missing or malformed ledger yields `[]`.
+ * `turnbell status`. Defensive: a missing or malformed ledger yields `[]`.
  */
 export function listWiredKeys(): string[] {
   return readLedger().map((entry) => entry.ledgerKey);
 }
 
 function writeLedger(entries: LedgerEntry[]): void {
-  mkdirSync(kelbrinHome(), { recursive: true });
+  mkdirSync(turnbellHome(), { recursive: true });
   writeFileAtomic(
     ledgerPath(),
     `${JSON.stringify(entries, null, JSON_INDENT)}${TRAILING_NEWLINE}`,
@@ -158,10 +158,10 @@ function writeLedger(entries: LedgerEntry[]): void {
 /**
  * Record one reversal entry, keyed by `ledgerKey`. If an entry for the key
  * already exists at the SAME path/marker it is kept as-is: the earliest capture
- * holds the true pre-kelbrin `before`, so preserving it keeps unwire
+ * holds the true pre-turnbell `before`, so preserving it keeps unwire
  * byte-accurate and stops a re-wire from appending a duplicate key (which
- * `status` would list twice). If the key's artifact moved — the hollr→kelbrin
- * rename moved managed files (`hollr.md` → `kelbrin.md`) and marker ids — the
+ * `status` would list twice). If the key's artifact moved — the hollr→turnbell
+ * rename moved managed files (`hollr.md` → `turnbell.md`) and marker ids — the
  * stale artifact is reversed on the spot so it does not linger, and the entry
  * is replaced to track the new one.
  */
@@ -288,7 +288,7 @@ export function wireTextFile(
 }
 
 function startMarker(markerId: string): string {
-  return `<!-- ${markerId}:start (managed by kelbrin — \`kelbrin uninstall\`, or re-run \`kelbrin init\` with read-aloud off, removes this) -->`;
+  return `<!-- ${markerId}:start (managed by turnbell — \`turnbell uninstall\`, or re-run \`turnbell init\` with read-aloud off, removes this) -->`;
 }
 
 function endMarker(markerId: string): string {
@@ -307,7 +307,7 @@ function markedBlock(markerId: string, body: string): string {
  */
 /**
  * Prefix identifying a block's start line regardless of the management wording
- * after it — that wording changed across the hollr→kelbrin rename, so matching
+ * after it — that wording changed across the hollr→turnbell rename, so matching
  * the full {@link startMarker} string would miss blocks written by old versions.
  */
 function startMarkerPrefix(markerId: string): string {
@@ -459,7 +459,7 @@ export function unwireJsonFile(
   dropLedgerKey(ledgerKey);
 }
 
-/** Delete a file kelbrin created whole, and drop its ledger key. Never throws. */
+/** Delete a file turnbell created whole, and drop its ledger key. Never throws. */
 export function unwireCreatedFile(path: string, ledgerKey: string): void {
   try {
     rmSync(path, { force: true });

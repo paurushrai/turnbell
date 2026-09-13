@@ -79,7 +79,7 @@ export class LinuxPlatform implements Platform {
   notifyArgv(title: string, body: string): string[] | null {
     return [
       NOTIFY_SEND,
-      "--app-name=kelbrin",
+      "--app-name=turnbell",
       title.slice(0, MAX_NOTIFY_TITLE),
       body.slice(0, MAX_NOTIFY_BODY),
     ];

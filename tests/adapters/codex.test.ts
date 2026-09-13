@@ -20,9 +20,9 @@ const NOTIFY_PAYLOAD = JSON.parse(
 ) as Record<string, unknown>;
 
 const NOTIFY_LINE =
-  'notify = ["kelbrin", "emit", "--agent", "codex", "--event", "done", "--payload-argv"]';
+  'notify = ["turnbell", "emit", "--agent", "codex", "--event", "done", "--payload-argv"]';
 const BLOCKED_COMMAND =
-  "kelbrin emit --agent codex --event blocked --payload-stdin";
+  "turnbell emit --agent codex --event blocked --payload-stdin";
 const CONFIG_LEDGER_KEY = "codex:config";
 const HOOKS_LEDGER_KEY = "codex:hooks";
 
@@ -36,8 +36,8 @@ const PERMISSION_PAYLOAD: Record<string, unknown> = {
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 const whichNone = (): string | null => null;
 const whichCodex = (bin: string): string | null =>
@@ -72,21 +72,21 @@ function readHooks(): Record<string, unknown> {
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-codex-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-codex-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
   unwireFromLedger(CONFIG_LEDGER_KEY);
   unwireFromLedger(HOOKS_LEDGER_KEY);
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -201,7 +201,7 @@ describe("codex.wire config.toml notify", () => {
     expect(text).not.toContain("old-notifier");
     expect(text).toContain(NOTIFY_LINE);
     expect(text).toContain('model = "gpt-5"');
-    // Exactly one `notify =` and one `]` (the one inside the kelbrin line).
+    // Exactly one `notify =` and one `]` (the one inside the turnbell line).
     expect(text.split("notify =").length).toBe(2);
     expect((text.match(/\]/g) ?? []).length).toBe(1);
     // No dangling continuation line or stray closing bracket survives.
@@ -224,7 +224,7 @@ describe("codex.wire config.toml notify", () => {
     const text = readConfig();
     // A notify nested in a table is left untouched...
     expect(text).toContain('notify = ["scoped-notifier"]');
-    // ...and kelbrin's top-level notify is inserted before the section.
+    // ...and turnbell's top-level notify is inserted before the section.
     expect(text).toContain(NOTIFY_LINE);
     expect(text.indexOf(NOTIFY_LINE)).toBeLessThan(text.indexOf("[profile.ci]"));
     expect(text.indexOf(NOTIFY_LINE)).toBeLessThan(text.indexOf("scoped-notifier"));
@@ -284,7 +284,7 @@ describe("codex.wire hooks.json blocked", () => {
 });
 
 describe("codex.unwire", () => {
-  it("should_restore_config_byte_identically_and_clear_kelbrin_hooks", async () => {
+  it("should_restore_config_byte_identically_and_clear_turnbell_hooks", async () => {
     writeConfig('model = "gpt-5"\n');
     mkdirSync(join(home, ".codex"), { recursive: true });
     writeFileSync(hooksPath(), `${JSON.stringify({ hooks: {} }, null, 2)}\n`, "utf8");
@@ -296,7 +296,7 @@ describe("codex.unwire", () => {
     expect(JSON.stringify(readHooks())).not.toContain(BLOCKED_COMMAND);
   });
 
-  it("should_leave_existing_but_kelbrin_free_files_when_nothing_preexisted", async () => {
+  it("should_leave_existing_but_turnbell_free_files_when_nothing_preexisted", async () => {
     await codex.wire(deps());
     expect(existsSync(configPath())).toBe(true);
     expect(existsSync(hooksPath())).toBe(true);
@@ -319,7 +319,7 @@ describe("codex.unwire", () => {
     expect(out).toContain('model = "gpt-5"');
   });
 
-  it("should_unwire_only_kelbrin_permission_hook_and_keep_foreign", async () => {
+  it("should_unwire_only_turnbell_permission_hook_and_keep_foreign", async () => {
     const testDeps = deps();
     await codex.wire(testDeps);
     const cfg = readHooks();
@@ -343,7 +343,7 @@ describe("codex.wire/unwire notify archive & restore", () => {
   const USER_NOTIFY = 'notify = ["my", "cmd"]';
 
   function notifyBackupPath(): string {
-    return join(kelbrinHomeDir, "codex-notify.bak");
+    return join(turnbellHomeDir, "codex-notify.bak");
   }
 
   it("should_archive_a_pre_existing_user_notify_on_wire", async () => {
@@ -373,7 +373,7 @@ describe("codex.wire/unwire notify archive & restore", () => {
     expect(existsSync(notifyBackupPath())).toBe(false);
   });
 
-  it("should_not_archive_when_the_existing_notify_is_already_kelbrins_own", async () => {
+  it("should_not_archive_when_the_existing_notify_is_already_turnbells_own", async () => {
     const testDeps = deps();
     await codex.wire(testDeps);
     await codex.wire(testDeps);
@@ -381,14 +381,14 @@ describe("codex.wire/unwire notify archive & restore", () => {
   });
 });
 
-describe("codex hollr→kelbrin rename compat", () => {
+describe("codex hollr→turnbell rename compat", () => {
   const LEGACY_NOTIFY_LINE =
     'notify = ["hollr", "emit", "--agent", "codex", "--event", "done", "--payload-argv"]';
   const LEGACY_BLOCKED_COMMAND =
     "hollr emit --agent codex --event blocked --payload-stdin";
 
   function notifyBackupPath(): string {
-    return join(kelbrinHomeDir, "codex-notify.bak");
+    return join(turnbellHomeDir, "codex-notify.bak");
   }
 
   it("should_replace_the_legacy_notify_line_on_wire_without_archiving_it", async () => {
@@ -397,7 +397,7 @@ describe("codex hollr→kelbrin rename compat", () => {
     await codex.wire(testDeps);
     expect(readConfig()).toContain(NOTIFY_LINE);
     expect(readConfig()).not.toContain('"hollr"');
-    // The legacy line is kelbrin's own pre-rename wiring, NOT a user notify —
+    // The legacy line is turnbell's own pre-rename wiring, NOT a user notify —
     // it must not be archived for later restore.
     expect(existsSync(notifyBackupPath())).toBe(false);
     await codex.unwire(testDeps);

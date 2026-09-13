@@ -22,16 +22,16 @@ const NOTIFICATION_PAYLOAD = JSON.parse(
   readFileSync(join(FIXTURES, "notification.json"), "utf8"),
 ) as Record<string, unknown>;
 
-const DONE_COMMAND = "kelbrin emit --agent gemini --event done --payload-stdin";
+const DONE_COMMAND = "turnbell emit --agent gemini --event done --payload-stdin";
 const BLOCKED_COMMAND =
-  "kelbrin emit --agent gemini --event blocked --payload-stdin";
+  "turnbell emit --agent gemini --event blocked --payload-stdin";
 const SETTINGS_LEDGER_KEY = "gemini:settings";
 const COMMAND_LEDGER_KEY = "gemini:command";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 const whichNone = (): string | null => null;
 const whichGemini = (bin: string): string | null =>
@@ -46,7 +46,7 @@ function settingsPath(): string {
 }
 
 function commandPath(): string {
-  return join(home, ".gemini", "commands", "kelbrin.toml");
+  return join(home, ".gemini", "commands", "turnbell.toml");
 }
 
 function readSettings(): Record<string, unknown> {
@@ -66,21 +66,21 @@ function hookEntries(event: string): Array<{
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-gemini-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-gemini-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
   unwireFromLedger(SETTINGS_LEDGER_KEY);
   unwireFromLedger(COMMAND_LEDGER_KEY);
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -202,13 +202,13 @@ describe("gemini.wire settings.json hooks", () => {
 });
 
 describe("gemini.wire slash command file", () => {
-  it("should_write_the_kelbrin_toml_custom_command", async () => {
+  it("should_write_the_turnbell_toml_custom_command", async () => {
     await gemini.wire(deps());
     expect(existsSync(commandPath())).toBe(true);
     const toml = readFileSync(commandPath(), "utf8");
     expect(toml).toContain("description =");
     expect(toml).toContain("prompt =");
-    expect(toml).toContain("!{kelbrin {{args}}}");
+    expect(toml).toContain("!{turnbell {{args}}}");
   });
 
   it("should_be_idempotent_for_the_command_file", async () => {
@@ -221,7 +221,7 @@ describe("gemini.wire slash command file", () => {
 });
 
 describe("gemini.unwire", () => {
-  it("should_unwire_only_kelbrin_gemini_hooks_and_keep_foreign_plus_delete_command", async () => {
+  it("should_unwire_only_turnbell_gemini_hooks_and_keep_foreign_plus_delete_command", async () => {
     const testDeps = deps();
     await gemini.wire(testDeps);
     const path = join(home, ".gemini", "settings.json");
@@ -234,7 +234,7 @@ describe("gemini.unwire", () => {
       e.hooks.map((h) => h.command),
     );
     expect(cmds).toEqual(["user-after"]);
-    expect(existsSync(join(home, ".gemini", "commands", "kelbrin.toml"))).toBe(false);
+    expect(existsSync(join(home, ".gemini", "commands", "turnbell.toml"))).toBe(false);
   });
 
   it("should_preserve_an_unrelated_hook_event_on_unwire", async () => {
@@ -284,7 +284,7 @@ describe("gemini.unwire", () => {
   });
 });
 
-describe("gemini hollr→kelbrin rename compat", () => {
+describe("gemini hollr→turnbell rename compat", () => {
   const LEGACY_DONE = "hollr emit --agent gemini --event done --payload-stdin";
   const LEGACY_BLOCKED =
     "hollr emit --agent gemini --event blocked --payload-stdin";
@@ -362,7 +362,7 @@ describe("gemini.detect", () => {
     mkdirSync(join(home, ".gemini", "antigravity-cli"), { recursive: true });
     writeFileSync(
       join(home, ".gemini", "hooks.json"),
-      `${JSON.stringify({ kelbrin: {} }, null, 2)}\n`,
+      `${JSON.stringify({ turnbell: {} }, null, 2)}\n`,
       "utf8",
     );
     const detection = await gemini.detect(deps(whichNone));

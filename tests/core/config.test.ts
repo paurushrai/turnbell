@@ -14,7 +14,7 @@ import {
   DEFAULTS,
   defaultOpenCommand,
   encodeCwd,
-  kelbrinHome,
+  turnbellHome,
   inQuietHours,
   isConfigured,
   isProjectEnabled,
@@ -26,28 +26,28 @@ import {
   quietActive,
   quietUntilPath,
 } from "../../src/core/config.ts";
-import type { KelbrinConfig, WebhookTarget } from "../../src/core/config.ts";
+import type { TurnbellConfig, WebhookTarget } from "../../src/core/config.ts";
 
 const PROJECT = "/some/project";
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
+let turnbellHomeDir: string;
 let prevHome: string | undefined;
-let prevKelbrinHome: string | undefined;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-cfg-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-cfg-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   prevHome = process.env.HOME;
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  // Isolate both v2 home ($KELBRIN_HOME) and v1 source (~/.claude via $HOME).
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  // Isolate both v2 home ($TURNBELL_HOME) and v1 source (~/.claude via $HOME).
   process.env.HOME = tmpRoot;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
   restoreEnv("HOME", prevHome);
-  restoreEnv("KELBRIN_HOME", prevKelbrinHome);
+  restoreEnv("TURNBELL_HOME", prevTurnbellHome);
   rmSync(tmpRoot, { recursive: true, force: true });
 });
 
@@ -60,23 +60,23 @@ function restoreEnv(key: string, value: string | undefined): void {
 }
 
 function writeGlobal(config: unknown): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  writeFileSync(join(kelbrinHomeDir, "config.json"), JSON.stringify(config));
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  writeFileSync(join(turnbellHomeDir, "config.json"), JSON.stringify(config));
 }
 
 function writeGlobalRaw(raw: string): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  writeFileSync(join(kelbrinHomeDir, "config.json"), raw);
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  writeFileSync(join(turnbellHomeDir, "config.json"), raw);
 }
 
 function writeProject(cwd: string, config: unknown): void {
-  const dir = join(kelbrinHomeDir, "projects");
+  const dir = join(turnbellHomeDir, "projects");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${encodeCwd(cwd)}.json`), JSON.stringify(config));
 }
 
 function touchMute(cwd: string): void {
-  const dir = join(kelbrinHomeDir, "projects");
+  const dir = join(turnbellHomeDir, "projects");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${encodeCwd(cwd)}.muted`), "");
 }
@@ -212,7 +212,7 @@ describe("migrateHttpOptIn", () => {
   function configWith(
     allowHttp: boolean,
     webhooks: WebhookTarget[],
-  ): KelbrinConfig {
+  ): TurnbellConfig {
     return { ...structuredClone(DEFAULTS), allowHttp, webhooks };
   }
 
@@ -260,13 +260,13 @@ describe("migrateHttpOptIn", () => {
   });
 });
 
-describe("kelbrinHome", () => {
-  it("should_fall_back_to_legacy_HOLLR_HOME_when_KELBRIN_HOME_unset", () => {
+describe("turnbellHome", () => {
+  it("should_fall_back_to_legacy_HOLLR_HOME_when_TURNBELL_HOME_unset", () => {
     const prevLegacy = process.env.HOLLR_HOME;
-    delete process.env.KELBRIN_HOME;
+    delete process.env.TURNBELL_HOME;
     process.env.HOLLR_HOME = join(tmpRoot, "legacy-home");
     try {
-      expect(kelbrinHome()).toBe(join(tmpRoot, "legacy-home"));
+      expect(turnbellHome()).toBe(join(tmpRoot, "legacy-home"));
     } finally {
       restoreEnv("HOLLR_HOME", prevLegacy);
     }
@@ -275,10 +275,10 @@ describe("kelbrinHome", () => {
 
 describe("migrateLegacyHome", () => {
   const legacyDir = (): string => join(tmpRoot, ".config", "hollr");
-  const newDir = (): string => join(tmpRoot, ".config", "kelbrin");
+  const newDir = (): string => join(tmpRoot, ".config", "turnbell");
 
-  it("should_rename_legacy_hollr_home_when_kelbrin_home_missing", () => {
-    delete process.env.KELBRIN_HOME;
+  it("should_rename_legacy_hollr_home_when_turnbell_home_missing", () => {
+    delete process.env.TURNBELL_HOME;
     mkdirSync(legacyDir(), { recursive: true });
     writeFileSync(join(legacyDir(), "config.json"), "{}\n", "utf8");
     migrateLegacyHome();
@@ -286,8 +286,8 @@ describe("migrateLegacyHome", () => {
     expect(existsSync(legacyDir())).toBe(false);
   });
 
-  it("should_leave_both_dirs_untouched_when_kelbrin_home_exists", () => {
-    delete process.env.KELBRIN_HOME;
+  it("should_leave_both_dirs_untouched_when_turnbell_home_exists", () => {
+    delete process.env.TURNBELL_HOME;
     mkdirSync(legacyDir(), { recursive: true });
     writeFileSync(join(legacyDir(), "config.json"), "{}\n", "utf8");
     mkdirSync(newDir(), { recursive: true });
@@ -299,13 +299,13 @@ describe("migrateLegacyHome", () => {
 
   it("should_skip_migration_when_an_env_override_is_set", () => {
     mkdirSync(legacyDir(), { recursive: true });
-    migrateLegacyHome(); // KELBRIN_HOME points elsewhere (beforeEach)
+    migrateLegacyHome(); // TURNBELL_HOME points elsewhere (beforeEach)
     expect(existsSync(legacyDir())).toBe(true);
     expect(existsSync(newDir())).toBe(false);
   });
 
   it("should_do_nothing_when_no_legacy_dir_exists", () => {
-    delete process.env.KELBRIN_HOME;
+    delete process.env.TURNBELL_HOME;
     migrateLegacyHome();
     expect(existsSync(newDir())).toBe(false);
   });
@@ -355,11 +355,11 @@ describe("migrateV1", () => {
 
   it("should_return_false_and_not_throw_when_the_write_fails", () => {
     writeV1({ voice: { name: "Alex", rate_wpm: 210 } });
-    // Point KELBRIN_HOME below a plain file so mkdirSync(recursive) hits
+    // Point TURNBELL_HOME below a plain file so mkdirSync(recursive) hits
     // ENOTDIR — the write fails without relying on filesystem permissions.
     const blocker = join(tmpRoot, "blocker");
     writeFileSync(blocker, "");
-    process.env.KELBRIN_HOME = join(blocker, "kelbrin");
+    process.env.TURNBELL_HOME = join(blocker, "turnbell");
     let result: boolean | undefined;
     expect(() => {
       result = migrateV1();
@@ -370,13 +370,13 @@ describe("migrateV1", () => {
 
 describe("activation default", () => {
   it("defaults activation to 'all' when absent from the config file", () => {
-    mkdirSync(kelbrinHome(), { recursive: true });
-    writeFileSync(join(kelbrinHome(), "config.json"), JSON.stringify({ version: 2 }));
+    mkdirSync(turnbellHome(), { recursive: true });
+    writeFileSync(join(turnbellHome(), "config.json"), JSON.stringify({ version: 2 }));
     expect(loadConfig("/tmp/proj").activation).toBe("all");
   });
   it("reads an explicit opt-in activation", () => {
-    mkdirSync(kelbrinHome(), { recursive: true });
-    writeFileSync(join(kelbrinHome(), "config.json"), JSON.stringify({ activation: "opt-in" }));
+    mkdirSync(turnbellHome(), { recursive: true });
+    writeFileSync(join(turnbellHome(), "config.json"), JSON.stringify({ activation: "opt-in" }));
     expect(loadConfig("/tmp/proj").activation).toBe("opt-in");
   });
 });
@@ -386,7 +386,7 @@ describe("isProjectEnabled", () => {
     expect(isProjectEnabled("/tmp/proj")).toBe(false);
   });
   it("is true when the .enabled marker exists", () => {
-    const dir = join(kelbrinHome(), "projects");
+    const dir = join(turnbellHome(), "projects");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, `${encodeCwd("/tmp/proj")}.enabled`), "");
     expect(isProjectEnabled("/tmp/proj")).toBe(true);
@@ -396,7 +396,7 @@ describe("isProjectEnabled", () => {
 describe("quietActive", () => {
   const now = new Date("2026-07-12T12:00:00Z");
   const writeQuiet = (body: string) => {
-    mkdirSync(kelbrinHome(), { recursive: true });
+    mkdirSync(turnbellHome(), { recursive: true });
     writeFileSync(quietUntilPath(), body);
   };
   it("is false when no quiet-until marker exists", () => {
