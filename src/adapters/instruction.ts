@@ -1,5 +1,5 @@
 /**
- * Read-aloud "speakable mode" instruction — the block kelbrin injects into an
+ * Read-aloud "speakable mode" instruction — the block turnbell injects into an
  * agent's global memory file so the model keeps its final message speakable and
  * routes code/detail to a temp file it opens for the user. Shared by every
  * instruction-capable adapter; the only per-user variable is the markdown-open
@@ -8,19 +8,19 @@
 
 import { join } from "node:path";
 
-import { kelbrinHome } from "../core/config.ts";
+import { turnbellHome } from "../core/config.ts";
 import type { WireOp } from "./diffwire.ts";
 import { wireMarkedSection } from "./diffwire.ts";
 
 /** Marker id shared by every adapter's read-aloud block. */
-export const READALOUD_MARKER = "kelbrin:readaloud";
+export const READALOUD_MARKER = "turnbell:readaloud";
 
 /** Marker id written by pre-rename (hollr) versions; replaced on re-wire. */
 const LEGACY_READALOUD_MARKER = "hollr:readaloud";
 
 /** Directory the model is told to write temp read-aloud files into. */
 export function readaloudTempDir(): string {
-  return join(kelbrinHome(), "readaloud");
+  return join(turnbellHome(), "readaloud");
 }
 
 /** Ledger key for an adapter's read-aloud injection: `<id>:readaloud`. */

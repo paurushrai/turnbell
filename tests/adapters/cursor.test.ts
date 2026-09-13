@@ -22,13 +22,13 @@ const BEFORESHELL_PAYLOAD = JSON.parse(
   readFileSync(join(FIXTURES, "beforeshell.json"), "utf8"),
 ) as Record<string, unknown>;
 
-const STOP_COMMAND = "kelbrin emit --agent cursor --event done --payload-stdin";
+const STOP_COMMAND = "turnbell emit --agent cursor --event done --payload-stdin";
 const LEDGER_KEY = "cursor";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 /** `which` fake that resolves nothing (cursor-agent not on PATH). */
 const whichNone = (): string | null => null;
@@ -63,19 +63,19 @@ function hookCommands(event: string): string[] {
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-cursor-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-cursor-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -187,7 +187,7 @@ describe("cursor.wire", () => {
 });
 
 describe("cursor.unwire", () => {
-  it("should_unwire_only_kelbrin_stop_hook_and_keep_foreign", async () => {
+  it("should_unwire_only_turnbell_stop_hook_and_keep_foreign", async () => {
     const testDeps = deps();
     await cursor.wire(testDeps);
     const cfg = readHooks();
@@ -234,7 +234,7 @@ describe("cursor.unwire", () => {
   });
 });
 
-describe("cursor hollr→kelbrin rename compat", () => {
+describe("cursor hollr→turnbell rename compat", () => {
   const LEGACY_STOP = "hollr emit --agent cursor --event done --payload-stdin";
 
   afterEach(() => {

@@ -1,18 +1,18 @@
 name: Bug report
-description: Something in kelbrin isn't working as expected
+description: Something in turnbell isn't working as expected
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for the report! For **security** issues, do not file here — see
-        [SECURITY.md](https://github.com/paurushrai/kelbrin/security).
+        [SECURITY.md](https://github.com/paurushrai/turnbell/security).
   - type: input
     id: version
     attributes:
-      label: kelbrin version
-      description: "Output of `kelbrin --version`"
-      placeholder: "kelbrin 1.0.0"
+      label: turnbell version
+      description: "Output of `turnbell --version`"
+      placeholder: "turnbell 1.0.0"
     validations:
       required: true
   - type: dropdown
@@ -29,7 +29,7 @@ body:
     id: agent
     attributes:
       label: Agent
-      description: Which coding agent (Claude Code, Codex, Gemini CLI, …) or `kelbrin run`?
+      description: Which coding agent (Claude Code, Codex, Gemini CLI, …) or `turnbell run`?
     validations:
       required: false
   - type: textarea
@@ -49,6 +49,6 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
-      description: Minimal steps. Output of `kelbrin doctor` and `kelbrin status` helps.
+      description: Minimal steps. Output of `turnbell doctor` and `turnbell status` helps.
     validations:
       required: true

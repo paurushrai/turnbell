@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * kelbrin CLI entry point: a hand-rolled subcommand dispatch (no arg-parse
+ * turnbell CLI entry point: a hand-rolled subcommand dispatch (no arg-parse
  * dependency). `run(argv)` returns the process exit code; `main(argv)` adds the
  * top-level error boundary, and the direct-execution guard turns that into
  * `process.exit`. The `emit` path is wrapped (`runEmitSafe`) so any throw
@@ -27,7 +27,7 @@ import type { TestDeps } from "./cli/test.ts";
 import { runTest } from "./cli/test.ts";
 import { runStatus } from "./cli/status.ts";
 import { runQuiet } from "./cli/quiet.ts";
-import type { KelbrinEvent } from "./core/events.ts";
+import type { TurnbellEvent } from "./core/events.ts";
 import { migrateLegacyHome } from "./core/config.ts";
 import type { WebhookTarget } from "./core/config.ts";
 import type { Platform } from "./platform/index.ts";
@@ -43,9 +43,9 @@ import { fireWebhooks } from "./sinks/webhook.ts";
  * Replaced at build time by tsup's `define` with the version from package.json.
  * At test time vitest injects the same value via its `define` config.
  */
-declare const __KELBRIN_VERSION__: string;
+declare const __TURNBELL_VERSION__: string;
 
-const CLI_NAME = "kelbrin";
+const CLI_NAME = "turnbell";
 
 const EXIT_OK = 0;
 const EXIT_REQUIRED_FAIL = 1;
@@ -54,15 +54,15 @@ const EXIT_ERROR = 1;
 const EXIT_USAGE = 2;
 
 const USAGE =
-  "usage: kelbrin <init|uninstall|emit|run|test|status|on|off|quiet|pause|resume|stop|mute|doctor> " +
+  "usage: turnbell <init|uninstall|emit|run|test|status|on|off|quiet|pause|resume|stop|mute|doctor> " +
   "[options] (--version for version)";
 
 const MARK_OK = "✔";
 const MARK_MISSING = "✖";
 
-export const VERSION: string = __KELBRIN_VERSION__;
+export const VERSION: string = __TURNBELL_VERSION__;
 
-/** Human-readable version banner, e.g. `kelbrin 0.2.0`. */
+/** Human-readable version banner, e.g. `turnbell 0.2.0`. */
 export function getVersionString(): string {
   return `${CLI_NAME} ${VERSION}`;
 }
@@ -72,7 +72,7 @@ interface RealSinks {
   platform: Platform;
   speak: typeof speakSequenced;
   notify(argv: string[]): void;
-  webhooks(ev: KelbrinEvent, targets: WebhookTarget[], allowHttp: boolean): void;
+  webhooks(ev: TurnbellEvent, targets: WebhookTarget[], allowHttp: boolean): void;
   awaitWebhooks(): Promise<void>;
 }
 
@@ -104,7 +104,7 @@ function realEmitDeps(): EmitDeps {
 
 /**
  * Spawn a non-detached child that owns the terminal. Plain mode inherits all
- * stdio; stream mode pipes stdout so `kelbrin run` can tee + parse it. NEVER uses
+ * stdio; stream mode pipes stdout so `turnbell run` can tee + parse it. NEVER uses
  * a shell — argv is passed as an array, so no injection or word-splitting.
  */
 function realSpawn(command: string, args: string[], mode: StdioMode): WrapperChild {
@@ -114,7 +114,7 @@ function realSpawn(command: string, args: string[], mode: StdioMode): WrapperChi
 }
 
 /**
- * Bounded stream-drain grace timer for `kelbrin run`. `unref` lets the process
+ * Bounded stream-drain grace timer for `turnbell run`. `unref` lets the process
  * exit the instant the drain wins, and guarantees the timer itself never keeps
  * the event loop alive.
  */
@@ -124,7 +124,7 @@ function realDelay(ms: number): Promise<void> {
   });
 }
 
-/** Real `kelbrin run` dependencies: the live spawn + sinks + stdout tee + clock. */
+/** Real `turnbell run` dependencies: the live spawn + sinks + stdout tee + clock. */
 function realWrapperDeps(): WrapperDeps {
   return {
     spawn: realSpawn,
@@ -138,7 +138,7 @@ function realWrapperDeps(): WrapperDeps {
   };
 }
 
-/** Real, production `kelbrin test` dependencies: the live sinks + cwd + stdout. */
+/** Real, production `turnbell test` dependencies: the live sinks + cwd + stdout. */
 function realTestDeps(): TestDeps {
   return {
     cwd: process.cwd(),
@@ -200,7 +200,7 @@ function printCheck(check: Check): void {
   }
 }
 
-/** Dispatch `kelbrin <cmd> [...]`; returns the process exit code. */
+/** Dispatch `turnbell <cmd> [...]`; returns the process exit code. */
 export async function run(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   switch (command) {
@@ -272,9 +272,9 @@ export async function main(argv: string[]): Promise<number> {
 const LEGACY_BIN_NAME = "hollr";
 
 const RENAME_NOTICE =
-  "hollr is now kelbrin. This alias keeps existing hooks working; " +
-  "install the new package (npm i -g kelbrin && npm rm -g hollr-cli) " +
-  "and re-run `kelbrin init` to update your wiring.";
+  "hollr is now turnbell. This alias keeps existing hooks working; " +
+  "install the new package (npm i -g turnbell && npm rm -g hollr-cli) " +
+  "and re-run `turnbell init` to update your wiring.";
 
 /**
  * One-line rename notice when the CLI is invoked through the legacy `hollr`

@@ -18,8 +18,8 @@ import { runUninstall } from "../../src/cli/uninstall.ts";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 /** `which` fake that resolves nothing (no agent binaries on PATH). */
 const whichNone = (): string | null => null;
@@ -61,30 +61,30 @@ function scriptIo(opts: { confirm: boolean[] }): ScriptIo {
 }
 
 function writeLedger(keys: string[]): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
+  mkdirSync(turnbellHomeDir, { recursive: true });
   const entries = keys.map((ledgerKey) => ({
     ledgerKey,
     path: join(home, `${ledgerKey}.json`),
     before: null,
     at: "2026-01-01T00:00:00.000Z",
   }));
-  writeFileSync(join(kelbrinHomeDir, "wired.json"), JSON.stringify(entries));
+  writeFileSync(join(turnbellHomeDir, "wired.json"), JSON.stringify(entries));
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-uninstall-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-uninstall-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -98,7 +98,7 @@ describe("runUninstall", () => {
     const code = await runUninstall(io, deps);
 
     expect(code).toBe(0);
-    expect(() => readFileSync(join(kelbrinHomeDir, "wired.json"), "utf8")).toThrow();
+    expect(() => readFileSync(join(turnbellHomeDir, "wired.json"), "utf8")).toThrow();
   });
 
   it("should_stop_when_the_user_declines_the_first_confirm", async () => {
@@ -109,7 +109,7 @@ describe("runUninstall", () => {
     const code = await runUninstall(io, deps);
 
     expect(code).toBe(0);
-    const ledger = readFileSync(join(kelbrinHomeDir, "wired.json"), "utf8");
+    const ledger = readFileSync(join(turnbellHomeDir, "wired.json"), "utf8");
     expect(ledger).toContain("a1:cfg");
   });
 
@@ -128,7 +128,7 @@ describe("runUninstall", () => {
     const cmds = (out.hooks?.Stop ?? []).flatMap((e: { hooks: { command: string }[] }) =>
       e.hooks.map((h) => h.command),
     );
-    expect(cmds).toEqual(["user-keep"]); // kelbrin's gone, foreign kept
+    expect(cmds).toEqual(["user-keep"]); // turnbell's gone, foreign kept
     expect(listWiredKeys()).toEqual([]);
   });
 
@@ -149,7 +149,7 @@ describe("runUninstall", () => {
 
     // Append an unrelated, always-reversible key so we can prove the loop
     // keeps going past the claude-code entry once its unwire throws.
-    const ledgerFile = join(kelbrinHomeDir, "wired.json");
+    const ledgerFile = join(turnbellHomeDir, "wired.json");
     const entries = JSON.parse(readFileSync(ledgerFile, "utf8")) as unknown[];
     entries.push({
       ledgerKey: "unknown:cfg",
@@ -173,7 +173,7 @@ describe("runUninstall", () => {
         io.notes.some((note) => note.startsWith("Could not fully reverse Claude Code:")),
       ).toBe(true);
       expect(io.notes).toContain("Unwired unknown:cfg.");
-      expect(io.notes).toContain("Deleted KELBRIN_HOME.");
+      expect(io.notes).toContain("Deleted TURNBELL_HOME.");
     } finally {
       chmodSync(claudeDir, 0o755); // restore so afterEach can rmSync tmpRoot
     }

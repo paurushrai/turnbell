@@ -79,10 +79,10 @@ describe("DarwinPlatform.notifyArgv", () => {
   const engine = new DarwinPlatform();
 
   it("should_build_osascript_display_notification_argv", () => {
-    expect(engine.notifyArgv("kelbrin", "response ready")).toEqual([
+    expect(engine.notifyArgv("turnbell", "response ready")).toEqual([
       "osascript",
       "-e",
-      'display notification "response ready" with title "kelbrin"',
+      'display notification "response ready" with title "turnbell"',
     ]);
   });
 

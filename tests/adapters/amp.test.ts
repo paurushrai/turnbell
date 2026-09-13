@@ -9,8 +9,8 @@ import type { AdapterDeps } from "../../src/adapters/types.ts";
 
 let tmpRoot: string;
 let home: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 /** `which` fake that resolves nothing (amp not on PATH). */
 const whichNone = (): string | null => null;
@@ -32,19 +32,19 @@ function settingsPath(): string {
 }
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-amp-"));
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-amp-"));
   home = join(tmpRoot, "home");
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
   mkdirSync(home, { recursive: true });
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
 });
@@ -119,7 +119,7 @@ describe("amp.wire (instructions-only fallback)", () => {
     expect(result.warnings.length).toBeGreaterThan(0);
     const text = result.warnings.join("\n");
     expect(text).toContain("amp.notifications");
-    expect(text).toContain("kelbrin run");
+    expect(text).toContain("turnbell run");
   });
 });
 

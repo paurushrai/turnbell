@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea or a new agent integration for kelbrin
+description: Suggest an idea or a new agent integration for turnbell
 labels: ["enhancement"]
 body:
   - type: textarea
@@ -13,7 +13,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: What you'd like kelbrin to do.
+      description: What you'd like turnbell to do.
     validations:
       required: true
   - type: textarea

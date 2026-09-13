@@ -10,17 +10,17 @@ import {
 } from "../../src/adapters/instruction.ts";
 
 let tmpRoot: string;
-let prevKelbrinHome: string | undefined;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-instr-"));
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = join(tmpRoot, ".config", "kelbrin");
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-instr-"));
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = join(tmpRoot, ".config", "turnbell");
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) delete process.env.KELBRIN_HOME;
-  else process.env.KELBRIN_HOME = prevKelbrinHome;
+  if (prevTurnbellHome === undefined) delete process.env.TURNBELL_HOME;
+  else process.env.TURNBELL_HOME = prevTurnbellHome;
   rmSync(tmpRoot, { recursive: true, force: true });
 });
 
@@ -43,7 +43,7 @@ describe("injectReadaloud", () => {
     op.apply();
     const out = readFileSync(path, "utf8");
     expect(out).toContain("# mine");
-    expect(out).toContain("kelbrin:readaloud:start");
+    expect(out).toContain("turnbell:readaloud:start");
   });
 });
 

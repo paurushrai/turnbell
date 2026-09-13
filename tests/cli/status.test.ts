@@ -9,21 +9,21 @@ import type { StatusIo, StatusModel } from "../../src/cli/status.ts";
 import { formatStatus, runStatus } from "../../src/cli/status.ts";
 
 let tmpRoot: string;
-let kelbrinHomeDir: string;
-let prevKelbrinHome: string | undefined;
+let turnbellHomeDir: string;
+let prevTurnbellHome: string | undefined;
 
 beforeEach(() => {
-  tmpRoot = mkdtempSync(join(tmpdir(), "kelbrin-status-"));
-  kelbrinHomeDir = join(tmpRoot, ".config", "kelbrin");
-  prevKelbrinHome = process.env.KELBRIN_HOME;
-  process.env.KELBRIN_HOME = kelbrinHomeDir;
+  tmpRoot = mkdtempSync(join(tmpdir(), "turnbell-status-"));
+  turnbellHomeDir = join(tmpRoot, ".config", "turnbell");
+  prevTurnbellHome = process.env.TURNBELL_HOME;
+  process.env.TURNBELL_HOME = turnbellHomeDir;
 });
 
 afterEach(() => {
-  if (prevKelbrinHome === undefined) {
-    delete process.env.KELBRIN_HOME;
+  if (prevTurnbellHome === undefined) {
+    delete process.env.TURNBELL_HOME;
   } else {
-    process.env.KELBRIN_HOME = prevKelbrinHome;
+    process.env.TURNBELL_HOME = prevTurnbellHome;
   }
   rmSync(tmpRoot, { recursive: true, force: true });
   vi.restoreAllMocks();
@@ -58,24 +58,24 @@ function outText(out: ReturnType<typeof vi.fn>): string {
 }
 
 function writeGlobal(config: Record<string, unknown>): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  writeFileSync(join(kelbrinHomeDir, "config.json"), JSON.stringify(config));
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  writeFileSync(join(turnbellHomeDir, "config.json"), JSON.stringify(config));
 }
 
 function writeLedger(keys: string[]): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
+  mkdirSync(turnbellHomeDir, { recursive: true });
   const entries = keys.map((ledgerKey) => ({
     ledgerKey,
     path: "/some/file",
     before: null,
     at: "2026-07-11T00:00:00.000Z",
   }));
-  writeFileSync(join(kelbrinHomeDir, "wired.json"), JSON.stringify(entries));
+  writeFileSync(join(turnbellHomeDir, "wired.json"), JSON.stringify(entries));
 }
 
 function writeLog(name: string, lines: string[]): void {
-  mkdirSync(kelbrinHomeDir, { recursive: true });
-  writeFileSync(join(kelbrinHomeDir, name), `${lines.join("\n")}\n`);
+  mkdirSync(turnbellHomeDir, { recursive: true });
+  writeFileSync(join(turnbellHomeDir, name), `${lines.join("\n")}\n`);
 }
 
 describe("runStatus report", () => {
@@ -148,8 +148,8 @@ describe("runStatus report", () => {
 
   it("should_report_muted_when_flag_present", () => {
     writeGlobal({});
-    mkdirSync(join(kelbrinHomeDir, "projects"), { recursive: true });
-    writeFileSync(join(kelbrinHomeDir, "projects", `${encodeCwd(process.cwd())}.muted`), "");
+    mkdirSync(join(turnbellHomeDir, "projects"), { recursive: true });
+    writeFileSync(join(turnbellHomeDir, "projects", `${encodeCwd(process.cwd())}.muted`), "");
     const { io, out } = makeIo();
     runStatus(io);
     expect(outText(out)).toContain("off for this project");
@@ -235,13 +235,13 @@ describe("status plain-language scope lines", () => {
   });
   it("under opt-in with no override, prompts to enable here", () => {
     expect(formatStatus({ ...base, activation: "opt-in" })).toContain(
-      "not turned on here — run 'kelbrin on'",
+      "not turned on here — run 'turnbell on'",
     );
   });
   it("shows an indefinite quiet", () => {
     expect(
       formatStatus({ ...base, quiet: { active: true, remainingMinutes: null } }),
-    ).toContain("quiet until you run 'kelbrin quiet off'");
+    ).toContain("quiet until you run 'turnbell quiet off'");
   });
   it("shows minutes remaining for a timed quiet", () => {
     expect(
