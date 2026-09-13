@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/paurushrai/turnbell/compare/turnbell-v1.0.1...turnbell-v1.0.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **voice:** fix mispronunciation and clipped audio for spoken lines ([#8](https://github.com/paurushrai/turnbell/issues/8)) ([bc13f1a](https://github.com/paurushrai/turnbell/commit/bc13f1a3249b4b07cd8b60da1dfc9b50bda1ceae))
+
 ## [1.0.1](https://github.com/paurushrai/turnbell/compare/turnbell-v1.0.0...turnbell-v1.0.1) (2026-09-13)
 
 
