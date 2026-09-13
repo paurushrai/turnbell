@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/paurushrai/turnbell/compare/turnbell-v1.0.0...turnbell-v1.0.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **deps:** bump vitest to v5, clear nanoid/postcss/vitest-mocker CVEs ([7bc61e1](https://github.com/paurushrai/turnbell/commit/7bc61e126b9c8dbc1fd7ca52fdd35eb89388bbf3))
+* **deps:** override transitive esbuild to 0.28.1+, clear last CVE ([1371ebf](https://github.com/paurushrai/turnbell/commit/1371ebf6001a0e2619e53144547e669e3fda7e98))
+
 ## 1.0.0
 
 Initial public release of **turnbell** — voice, desktop, and webhook notifications for CLI coding agents.
