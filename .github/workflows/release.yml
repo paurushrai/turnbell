@@ -41,8 +41,12 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+      # Trusted Publishing (OIDC) needs npm >= 11.5.1; the runner's bundled
+      # npm may lag behind, so pin it explicitly rather than trust the image.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run build
+      # No NODE_AUTH_TOKEN: npm exchanges the id-token: write OIDC token above
+      # for a short-lived publish credential via Trusted Publishing — set up
+      # on npmjs.com under the turnbell package's Trusted Publisher settings.
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
