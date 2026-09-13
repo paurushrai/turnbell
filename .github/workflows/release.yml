@@ -3,6 +3,9 @@ name: release
 on:
   push:
     branches: [main]
+  # Lets a maintainer re-run just the publish step (e.g. after fixing auth)
+  # without release-please needing to cut a whole new version for it.
+  workflow_dispatch:
 
 # release-please needs to open/update its release PR and cut tags/releases.
 permissions:
@@ -29,7 +32,7 @@ jobs:
   publish:
     name: publish to npm
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
