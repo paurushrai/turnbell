@@ -31,7 +31,11 @@ function unwrap<T>(value: T | symbol): T {
     clack.cancel(CANCEL_MESSAGE);
     throw new Error(CANCEL_MESSAGE);
   }
-  return value;
+  // `isCancel` narrows to the specific cancel symbol (`@clack/core` >=1.5.0),
+  // not the whole `symbol` type, so a generic `T` isn't excluded automatically
+  // here. The runtime check above already proves `value` is not the cancel
+  // symbol, so this assertion is sound.
+  return value as T;
 }
 
 /**
