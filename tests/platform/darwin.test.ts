@@ -28,7 +28,7 @@ describe("DarwinPlatform.voiceArgv", () => {
       "-r",
       "200",
       "--",
-      "hello world",
+      "hello world [[slnc 300]]",
     ]);
   });
 
@@ -37,7 +37,12 @@ describe("DarwinPlatform.voiceArgv", () => {
     expect(argv).not.toBeNull();
     const args = argv as string[];
     expect(args[args.length - 2]).toBe("--");
-    expect(args[args.length - 1]).toBe("hi there");
+    expect(args[args.length - 1]).toBe("hi there [[slnc 300]]");
+  });
+
+  it("should_append_trailing_silence_so_the_last_syllable_is_not_clipped", () => {
+    const argv = engine.voiceArgv("hi", "Alex", 200) as string[];
+    expect(argv[argv.length - 1]).toBe("hi [[slnc 300]]");
   });
 
   it("should_return_null_when_text_is_empty", () => {
@@ -48,10 +53,11 @@ describe("DarwinPlatform.voiceArgv", () => {
     expect(engine.voiceArgv("   \t\n", "Alex", 200)).toBeNull();
   });
 
-  it("should_cap_text_at_2000_chars", () => {
+  it("should_cap_speech_text_at_2000_chars_before_the_trailing_silence_marker", () => {
     const argv = engine.voiceArgv("a".repeat(10_000), "Alex", 200);
     const args = argv as string[];
-    expect((args[args.length - 1] as string).length).toBe(2000);
+    const last = args[args.length - 1] as string;
+    expect(last).toBe(`${"a".repeat(2000)} [[slnc 300]]`);
   });
 
   it("should_omit_voice_flag_for_sentinels_and_null", () => {

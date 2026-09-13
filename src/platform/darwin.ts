@@ -11,6 +11,15 @@ import type { Platform, RequiredBinary } from "./index.ts";
 import { coerceRate } from "./rate.ts";
 
 const MAX_SPEECH_CHARS = 2000;
+/**
+ * Trailing silence appended after every spoken line. Without it, `say`'s audio
+ * device can close right at the final phoneme before it fully drains, so live
+ * playback (not `-o` file rendering, which is unaffected) chops the last
+ * syllable short. `[[slnc N]]` is Apple's embedded speech-command syntax for N
+ * milliseconds of silence; confirmed to add real trailing audio (not just a
+ * text delay) by comparing rendered file duration with and without it.
+ */
+const TRAILING_SILENCE = "[[slnc 300]]";
 const MAX_NOTIFY_BODY = 200;
 const MAX_NOTIFY_TITLE = 60;
 const SOUND_DIR = "/System/Library/Sounds";
@@ -79,7 +88,7 @@ export class DarwinPlatform implements Platform {
       "-r",
       String(coerceRate(rateWpm)),
       "--",
-      text.slice(0, MAX_SPEECH_CHARS),
+      `${text.slice(0, MAX_SPEECH_CHARS)} ${TRAILING_SILENCE}`,
     ];
   }
 
