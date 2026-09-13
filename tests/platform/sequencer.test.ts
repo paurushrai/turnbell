@@ -74,7 +74,15 @@ describe("speakSequenced", () => {
     });
     const payload = lastPayload();
     expect(payload.soundArgv).toEqual(["afplay", "/System/Library/Sounds/Glass.aiff"]);
-    expect(payload.voiceArgv).toEqual(["say", "-v", "Alex", "-r", "200", "--", "all done"]);
+    expect(payload.voiceArgv).toEqual([
+      "say",
+      "-v",
+      "Alex",
+      "-r",
+      "200",
+      "--",
+      "all done [[slnc 300]]",
+    ]);
     expect(payload.pidPath).toBe(join(turnbellHomeDir, "reading.pid"));
   });
 
