@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WebhookTarget } from "../../src/core/config.ts";
 import type { TurnbellEvent } from "../../src/core/events.ts";
-import { projectLabel } from "../../src/core/events.ts";
+import { projectLabel, speakableText } from "../../src/core/events.ts";
 import type { Platform } from "../../src/platform/index.ts";
 import type { SpeakSequencedOptions } from "../../src/platform/sequencer.ts";
 import type { TestDeps } from "../../src/cli/test.ts";
@@ -96,7 +96,7 @@ describe("runTest default (live local check)", () => {
     const code = await runTest([], deps, NOW);
     expect(code).toBe(0);
     expect(spokenText(speak)).toBe(
-      `turnbell response is ready in ${projectLabel(process.cwd())}`,
+      speakableText(`turnbell response is ready in ${projectLabel(process.cwd())}`),
     );
     expect(notify).toHaveBeenCalledTimes(1);
     expect(webhooks).not.toHaveBeenCalled();

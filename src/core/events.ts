@@ -30,6 +30,16 @@ const CODE_BLOCK = /```[\s\S]*?```/g;
 const BACKTICK = /`/g;
 const WHITESPACE_RUN = /\s+/g;
 const CODE_BLOCK_PLACEHOLDER = " code block omitted. ";
+const WORD = /[A-Za-z]+/g;
+
+/**
+ * Words the OS voice engines (macOS `say`, PowerShell speech, `espeak`) clip or
+ * mispronounce because they aren't real dictionary words. Spoken form only —
+ * never applied to text shown in a notification, log, or webhook payload.
+ */
+const PRONUNCIATION_OVERRIDES: ReadonlyMap<string, string> = new Map([
+  ["turnbell", "turn bell"],
+]);
 
 /** Basename of `cwd` with `-` and `_` turned into spaces, for speaking. */
 export function projectLabel(cwd: string): string {
@@ -54,4 +64,12 @@ export function prepareSpeechText(
     out = out.replace(CODE_BLOCK, CODE_BLOCK_PLACEHOLDER).replace(BACKTICK, "");
   }
   return out.replace(WHITESPACE_RUN, " ").trim().slice(0, maxChars);
+}
+
+/**
+ * Substitute known-mispronounced words for speech only. Whole-word match only
+ * (the regex captures a full run of letters), so `turnbellish` is untouched.
+ */
+export function speakableText(text: string): string {
+  return text.replace(WORD, (word) => PRONUNCIATION_OVERRIDES.get(word.toLowerCase()) ?? word);
 }

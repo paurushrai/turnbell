@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TurnbellEvent } from "../../src/core/events.ts";
-import { projectLabel } from "../../src/core/events.ts";
+import { projectLabel, speakableText } from "../../src/core/events.ts";
 import type { Platform } from "../../src/platform/index.ts";
 import type { SpeakSequencedOptions } from "../../src/platform/sequencer.ts";
 import type { WebhookTarget } from "../../src/core/config.ts";
@@ -201,7 +201,7 @@ describe("runEmit drives route", () => {
     const code = await runEmit(["--agent", "x", "--event", "done"], deps);
     expect(code).toBe(0);
     expect(spokenText(speak)).toBe(
-      `x response is ready in ${projectLabel(process.cwd())}`,
+      speakableText(`x response is ready in ${projectLabel(process.cwd())}`),
     );
   });
 });

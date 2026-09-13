@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { prepareSpeechText, projectLabel } from "../../src/core/events.ts";
+import { prepareSpeechText, projectLabel, speakableText } from "../../src/core/events.ts";
 
 describe("projectLabel", () => {
   it("should_use_basename_with_dashes_as_spaces", () => {
@@ -49,5 +49,25 @@ describe("prepareSpeechText", () => {
 
   it("should_still_collapse_whitespace_when_not_stripping", () => {
     expect(prepareSpeechText("a   b", 1200, false)).toBe("a b");
+  });
+});
+
+describe("speakableText", () => {
+  it("should_substitute_a_known_mispronounced_word", () => {
+    expect(speakableText("done in turnbell")).toBe("done in turn bell");
+  });
+
+  it("should_match_case_insensitively_but_leave_casing_of_the_override_alone", () => {
+    expect(speakableText("Turnbell is ready")).toBe("turn bell is ready");
+  });
+
+  it("should_leave_unrelated_text_unchanged", () => {
+    expect(speakableText("Claude Code response is ready in my-app")).toBe(
+      "Claude Code response is ready in my-app",
+    );
+  });
+
+  it("should_not_touch_a_word_that_only_contains_turnbell_as_a_substring", () => {
+    expect(speakableText("turnbellish")).toBe("turnbellish");
   });
 });

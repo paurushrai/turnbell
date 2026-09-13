@@ -18,7 +18,7 @@ import {
 } from "./config.ts";
 import type { EventName } from "./config.ts";
 import type { TurnbellEvent } from "./events.ts";
-import { prepareSpeechText } from "./events.ts";
+import { prepareSpeechText, speakableText } from "./events.ts";
 import type { Platform } from "../platform/index.ts";
 import type { speakSequenced } from "../platform/sequencer.ts";
 
@@ -132,7 +132,7 @@ function fireSinks(
   if (mode === "announce" || mode === "readaloud") {
     const spoken = mode === "readaloud" ? readaloudSpeech(ev, cfg, line) : line;
     if (!quiet) {
-      speak(deps, cfg, spoken);
+      speak(deps, cfg, speakableText(spoken));
     }
     if (cfg.notify.desktop) {
       desktopNotify(deps, line);
