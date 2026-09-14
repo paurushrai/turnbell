@@ -42,6 +42,51 @@ npx turnbell init
 `turnbell init` detects which agents you have, shows you the exact config diff
 before writing anything, and lets you choose what you hear and when.
 
+## Quickstart
+
+New here? This is the whole path from zero to a working alert.
+
+1. **Check you have Node ≥ 20.**
+   ```bash
+   node -v
+   ```
+   If that fails or prints something below `v20`, install Node first (e.g.
+   [nodejs.org](https://nodejs.org)) — turnbell won't run without it.
+
+2. **Install and set up.**
+   ```bash
+   npm i -g turnbell
+   turnbell init
+   ```
+   Answer the wizard's questions (which agents you use, what should alert you,
+   any sounds/webhooks). It shows you every file it's about to change before
+   writing anything — nothing happens without you seeing the diff first.
+
+3. **Confirm it actually works.** At the end of the wizard it offers to fire a
+   test alert for you — say yes. Or run it yourself any time:
+   ```bash
+   turnbell test
+   ```
+   You should hear a voice, see a desktop notification, or both, depending on
+   what you picked in step 2. If nothing happens, that's the problem to chase
+   before doing anything else.
+
+4. **Something's wrong? Run the doctor.**
+   ```bash
+   turnbell doctor
+   ```
+   It checks for missing voice/notification/sound tools and prints the exact
+   command to fix each one.
+
+5. **You're set.** Kick off a real agent run (Claude Code, Codex, etc.) and
+   walk away — turnbell tells you the moment it finishes or needs input.
+   `turnbell status` explains at any time whether it's currently listening and
+   why.
+
+Everything past this point — the agent-by-agent capability table, webhooks,
+hotkeys, uninstall behavior — is reference material for once the basic setup
+above is working.
+
 ## Migrating from hollr
 
 turnbell is the same tool as **hollr** (npm: `hollr-cli`), renamed. Upgrade:
